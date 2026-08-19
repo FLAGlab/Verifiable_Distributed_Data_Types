@@ -31,6 +31,7 @@ module DHTable {
 	define [htl htl1 l0 l1] := [?htl:Location ?htl1:Location ?l0:Location ?l1:Location]
 	define [hf hf1 f g]     := [?hf:(fn 'S N) ?hf1:(fn 'S N) ?f:(fn 'S N) ?g:(fn 'S N)]
 	define [dlls dlls3 dlls0 dlls1] := [?dlls:(DLst (Lst 'S)) ?dlls:(DLst (Lst 'S)) ?dlls0:(DLst (Lst 'S)) ?dlls1:(DLst (Lst 'S))]
+	define [lh lsts tl] := [?lh:Location ?lsts:(Lst 'S) ?tl:(DLst (Lst 'S))]
 
 	assert* dhtr_no_conf :=
 	(
@@ -110,7 +111,7 @@ module DHTable {
 	###     inserted value is alive. Stated constructor-recursively over the
 	###     DHTable shape:
 	###
-	###       * an empty DHT has noestored values, so it is trivially available;
+	###       * an empty DHT has no stored values, so it is trivially available;
 	###       * (dht_insert dht v) is available iff dht is and the bucket window
 	###         where v was just placed is alive.
 	###
@@ -414,7 +415,9 @@ module DHTable {
 	assert dht_functional_correctness
 
 
-	### dht_replication_correctness  (asserted — formal statement of the
+	### dht_replication_correctness  (proven by induction on dht; rests on the
+	### asserted auxiliaries no_consecutive_failures_insert_inv and
+	### no_consecutive_failures_implies_key_available — formal statement of the
 	### abstract's replication claim)
 	###
 	### Paper claim (abstract): "as long as no `r` consecutive bucket
@@ -430,8 +433,8 @@ module DHTable {
 	### degenerate case `(dht_empty empty hf rv htl)` (initialized with
 	### an empty location list): there `dlls = (dempty htl)`,
 	### `no_consecutive_failures` is vacuously true (no positions to
-	### start a window from), but `available_key` returns false
-	### unconditionally on a `dempty` o_dlls (`available_key_axioms`
+	### start a window from), but `available_key` returns false when
+	### both of its list arguments are `dempty` (`available_key_axioms`
 	### first clause), so a `dht_insert` on top would be unavailable
 	### even though the replication invariant trivially holds.
 	###
@@ -462,7 +465,7 @@ module DHTable {
 	###     proved by induction on (bucket, dlls). It is *not* declared
 	###     here so the assumption base stays minimal; add it as a
 	###     proved lemma when discharging this theorem.
-	### Auxiliary lemma (ASSERTED): `no_consecutive_failures` is invariant
+	### Auxiliary lemma (PROVED): `no_consecutive_failures` is invariant
 	### under `insertDPrList` when both the dlls and o_dlls slots are the
 	### freshly-inserted list (the canonical form `available` uses).
 	### Provable by structural induction on dlls using
@@ -476,45 +479,87 @@ module DHTable {
 				(insertDPrList n rv1 v0 dlls0))
 			<==>
 			(no_consecutive_failures rv1 dlls0 dlls0))
-	assert no_consecutive_failures_insert_inv
+	conclude no_consecutive_failures_insert_inv
+		pick-any n:N rv1:N v0:'S dlls0:(DLst (Lst 'S))
+			(!uspec* DL_L_S.ncf_insert_inv [n rv1 v0 dlls0])
 
 	### Auxiliary lemma (ASSERTED): the "every-position implies
 	### this-position" lookup. If every (rv+1)-window in a non-empty
 	### dlls is alive, then so is the window at any chosen bucket index.
-	### Provable by induction on (bucket, dlls).
+	### Auxiliary lemma (PROVED): the "every-position implies this-position"
+	### lookup. If every (rv+1)-window in a non-empty dlls is alive, then so is
+	### the window at any chosen bucket index. It is a one-step corollary of
+	### `DL_L_S.ncf_key_available_gen`, which is proved by induction on the
+	### bucket index in dlls.ath.
+	###
+	### NOTE ON THE PRECONDITION. This lemma used to be asserted with the
+	### hypothesis `(~ (dlls0 = (dempty htl)))`, and in that form it is not
+	### merely unproven, it is FALSE. That hypothesis only says `dlls0` differs
+	### from the empty list AT ONE PARTICULAR LOCATION: `(dempty htl2)` for any
+	### htl2 =/= htl still satisfies it, and there `no_consecutive_failures` is
+	### vacuously true while `available_key` is false. Since `Location.aliveLocal`
+	### and the assertion `(~ alive unreachableHost)` force two distinct
+	### locations to exist, the old statement is refutable outright. Saying that
+	### the bucket list is a `dlst` is what was actually meant, and it is what
+	### the lemma needs.
 	define no_consecutive_failures_implies_key_available :=
-		(forall n rv1 dlls0 htl .
-			((~ (dlls0 = (dempty htl))) &
-			 (no_consecutive_failures rv1 dlls0 dlls0))
+		(forall n rv1 lh lsts tl .
+			(no_consecutive_failures rv1 (dlst lh lsts tl) (dlst lh lsts tl))
 			==>
-			(available_key n rv1 dlls0 dlls0))
-	assert no_consecutive_failures_implies_key_available
+			(available_key n rv1 (dlst lh lsts tl) (dlst lh lsts tl)))
+	conclude no_consecutive_failures_implies_key_available
+		pick-any n:N rv1:N lh:Location lsts:(Lst 'S) tl:(DLst (Lst 'S))
+		assume hyp := (no_consecutive_failures rv1 (dlst lh lsts tl) (dlst lh lsts tl))
+			(!mp (!uspec* DL_L_S.ncf_key_available_gen
+					[n (dlst lh lsts tl) rv1 lh lsts tl])
+			     (!both hyp hyp))
 
-	### Auxiliary lemma (PROVED): `insertDPrList` preserves
-	### non-emptiness. Discharged here by contradiction using
-	### `insert_into_empty_dlls`.
+	### Auxiliary lemma (PROVED): `insertDPrList` preserves non-emptiness.
+	### Stated over the `dlst` shape for the same reason as above: an inequality
+	### against `(dempty htl)` for one fixed `htl` does not say that a bucket
+	### list is non-empty.
 	define insertDPrList_preserves_nonempty :=
-		(forall n rv1 v0 dlls0 htl .
-			(~ ((insertDPrList n rv1 v0 dlls0) = (dempty htl)))
+		(forall n rv1 v0 dlls0 .
+			(exists lh lsts tl . (insertDPrList n rv1 v0 dlls0) = (dlst lh lsts tl))
 			==>
-			(~ (dlls0 = (dempty htl))))
+			(exists lh lsts tl . dlls0 = (dlst lh lsts tl)))
 	conclude insertDPrList_preserves_nonempty
-		pick-any n:N rv1:N v0:'S dlls0:(DLst (Lst 'S)) htl:Location
-		assume hyp_ne := (~ ((insertDPrList n rv1 v0 dlls0) = (dempty htl)))
-			(!by-contradiction (~ (dlls0 = (dempty htl)))
-				assume dlls0_empty := (dlls0 = (dempty htl))
-					let { collapse := (!chain [
-							(insertDPrList n rv1 v0 dlls0)
-							= (insertDPrList n rv1 v0 (dempty htl)) [dlls0_empty]
-							= (dempty htl)                          [DL_L_S.insert_into_empty_dlls]
-						]) }
-					(!absurd collapse hyp_ne))
+		pick-any n:N rv1:N v0:'S dlls0:(DLst (Lst 'S))
+		assume hyp_ne :=
+			(exists lh lsts tl . (insertDPrList n rv1 v0 dlls0) = (dlst lh lsts tl))
+			pick-witnesses wlh wlsts wtl for hyp_ne ins_char
+			(!cases (!uspec dlst-no-junk dlls0)
+				# dlls0 is empty: the insertion collapses back to it, which
+				# contradicts the witness saying the result is a dlst.
+				assume is_empty := (exists htl . dlls0 = (dempty htl))
+					pick-witness wh for is_empty wh_eq
+					let {
+						collapse := (!chain [
+							(dempty wh)
+							= (insertDPrList n rv1 v0 (dempty wh))
+								[DL_L_S.insert_into_empty_dlls]
+							= (insertDPrList n rv1 v0 dlls0)   [wh_eq]
+							= (dlst wlh wlsts wtl)             [ins_char] ]);
+						nc := (!uspec* dlst-no-conf [wh wlh wlsts wtl])
+					}
+					(!from-complements
+						(exists lh lsts tl . dlls0 = (dlst lh lsts tl))
+						collapse nc)
+				# dlls0 is already a dlst: that is the conclusion.
+				assume is_dlst := (exists lh lsts tl . dlls0 = (dlst lh lsts tl))
+					(!claim is_dlst))
 
 
+	### NOTE ON THE PRECONDITION. The middle conjunct used to read
+	### `(~ (dlls = (dempty htl)))`. That does not say the bucket list is
+	### non-empty, only that it differs from the empty list AT THE ONE LOCATION
+	### `htl`, and `(dempty htl2)` for any other htl2 satisfies it while making
+	### `available_key` false. Spelling out the `dlst` shape is what was meant:
+	### the \ac{DHT} has at least one bucket.
 	define dht_replication_correctness :=
 		(forall dht hf rv htl dlls .
 			(((rep dht) = (dhtr hf rv htl dlls)) &
-			 (~ (dlls = (dempty htl))) &
+			 (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 			 (no_consecutive_failures rv dlls dlls))
 			==>
 			(available dht))
@@ -523,7 +568,7 @@ module DHTable {
 	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
 		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
 		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
-		               (~ (dlls = (dempty htl))) &
+		               (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 		               (no_consecutive_failures rv dlls dlls))
 			(!chain-> [
 				true
@@ -532,13 +577,13 @@ module DHTable {
 	| (dht as (dht_insert dht0 v0)) =>
 		let { IH := (forall hf rv htl dlls .
 		                (((rep dht0) = (dhtr hf rv htl dlls)) &
-		                 (~ (dlls = (dempty htl))) &
+		                 (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 		                 (no_consecutive_failures rv dlls dlls))
 		                ==>
 		                (available dht0)) }
 		pick-any hf:(fn 'S N) rv:N htl:Location dlls_after:(DLst (Lst 'S))
 		assume hyp := (((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls_after)) &
-		               (~ (dlls_after = (dempty htl))) &
+		               (exists lh lsts tl . dlls_after = (dlst lh lsts tl)) &
 		               (no_consecutive_failures rv dlls_after dlls_after))
 			let {
 				# Extract the three conjuncts of hyp.
@@ -546,7 +591,8 @@ module DHTable {
 					hyp ==> ((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls_after))
 						[prop-taut]]);
 				nonempty_after := (!chain-> [
-					hyp ==> (~ (dlls_after = (dempty htl))) [prop-taut]]);
+					hyp ==> (exists lh lsts tl . dlls_after = (dlst lh lsts tl))
+						[prop-taut]]);
 				ncf_after := (!chain-> [
 					hyp ==> (no_consecutive_failures rv dlls_after dlls_after) [prop-taut]]);
 				# By rep_e applied to dht0, dht0 has an internal representation.
@@ -595,27 +641,40 @@ module DHTable {
 					==> (no_consecutive_failures rv0 dlls0 dlls0)
 						[no_consecutive_failures_insert_inv]
 				]);
-				# Non-emptiness of dlls0: translate through htl_eq and dlls_eq,
-				# then apply the contrapositive lemma.
+				# Non-emptiness of dlls0: move the `dlst` shape back across the
+				# insertion, which cannot turn an empty bucket list into a
+				# non-empty one.
 				nonempty_insert_form := (!chain-> [
 					nonempty_after
-					==> (~ (dlls_after = (dempty htl0))) [htl_eq]
-					==> (~ ((insertDPrList (hf0 at v0) rv0 v0 dlls0) = (dempty htl0)))
+					==> (exists lh lsts tl .
+					        (insertDPrList (hf0 at v0) rv0 v0 dlls0) = (dlst lh lsts tl))
 						[dlls_eq]
 				]);
 				nonempty_before := (!mp
 					(!uspec* insertDPrList_preserves_nonempty
-						[(hf0 at v0) rv0 v0 dlls0 htl0])
+						[(hf0 at v0) rv0 v0 dlls0])
 					nonempty_insert_form);
 				# Apply IH at the witness names.
 				ih_premise := (!both rep0_eq (!both nonempty_before ncf_before));
-				avail_dht0 := (!mp (!uspec* IH [hf0 rv0 htl0 dlls0]) ih_premise);
-				# Lookup lemma: available_key holds at (hf0 at v0).
-				lookup_premise := (!both nonempty_before ncf_before);
-				avail_key := (!mp
+				avail_dht0 := (!mp (!uspec* IH [hf0 rv0 htl0 dlls0]) ih_premise)
+			}
+			# Name the buckets of dlls0 so the lookup lemma, which is stated over
+			# the `dlst` shape, can be instantiated.
+			pick-witnesses blh blsts btl for nonempty_before dlls0_char
+			let {
+				ncf_dlst := (!chain-> [
+					ncf_before
+					==> (no_consecutive_failures rv0 (dlst blh blsts btl)
+					                                 (dlst blh blsts btl)) [dlls0_char]
+				]);
+				avail_key_dlst := (!mp
 					(!uspec* no_consecutive_failures_implies_key_available
-						[(hf0 at v0) rv0 dlls0 htl0])
-					lookup_premise);
+						[(hf0 at v0) rv0 blh blsts btl])
+					ncf_dlst);
+				avail_key := (!chain-> [
+					avail_key_dlst
+					==> (available_key (hf0 at v0) rv0 dlls0 dlls0) [dlls0_char]
+				]);
 				# available_axioms (dht_insert clause) fires because rep0_eq
 				# supplies its `when` antecedent with the same witnesses.
 				avail_conj := (!both avail_dht0 avail_key);

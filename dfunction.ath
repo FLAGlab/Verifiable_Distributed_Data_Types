@@ -43,12 +43,21 @@ module DFunction {
 
     ])
 
+    # NOTE: both guards must name the SAME replica, `(functionReplica f lf0 lf1)`
+    # — the one that actually occurs in `rComp`. An earlier version wrote the
+    # negative guard over `(functionReplica f l1 l0)`, and since `l1`/`l0` are
+    # pattern variables distinct from `lf0`/`lf1`, `fun` quantified them
+    # independently of the composition's own sites. That let the NONE clause be
+    # instantiated at an unrelated dead pair while the composition's own sites
+    # were alive, so the same term was provably both `NONE` and
+    # `(SOME (g at (f at x)))` — an inconsistent assumption base, and with it a
+    # vacuous `fault_tolerance_correctness`.
     assert apply_composition_axiom :=
     (fun [
         (apply rComp x) =
             [
                 (apply (functionReplica g lg0 lg1 ) (f at x))  when (alive (functionReplica f lf0 lf1))
-                NONE                         when (~(alive (functionReplica f l1 l0)))
+                NONE                         when (~(alive (functionReplica f lf0 lf1)))
             ]
     ])
 

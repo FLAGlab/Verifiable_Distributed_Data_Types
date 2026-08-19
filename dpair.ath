@@ -186,8 +186,22 @@ datatype-cases dpr-equiv-no-failures {
       (!chain-> [     (1st & 2nd)
 	  	  ==> (dp1 dpr-equiv dp2)              [dpr-equiv-def]])}}
 
+### equal-equiv-conjecture
+### Structural equality is strictly stronger than behavioral equivalence:
+### equal pairs agree on both destructors, hence are dpr-equiv. The converse
+### does not hold, which is what keeps `=` and `dpr-equiv` distinct notions.
 define equal-equiv-conjecture :=
   (forall dp1 dp2 . dp1 = dp2 ==> dp1 dpr-equiv dp2)
+
+conclude equal-equiv-conjecture
+  pick-any dp1:(DPr 'S 'T) dp2:(DPr 'S 'T)
+    assume h := (dp1 = dp2)
+      let { g1 := (!chain [(getFirst  dp1) = (getFirst  dp2)  [h]]);
+            g2 := (!chain [(getSecond dp1) = (getSecond dp2)  [h]]);
+            _  := (!both g1 g2) }
+        (!chain-> [ (((getFirst  dp1) = (getFirst  dp2)) &
+                     ((getSecond dp1) = (getSecond dp2)))
+                    ==> (dp1 dpr-equiv dp2)              [dpr-equiv-def]])
 
 } # close module DPr
 

@@ -26,6 +26,18 @@ module DL_L_S {
            [?l:Location ?l0:Location ?lh:Location ?htl:Location ?htl0:Location
             ?ll:(Lst Location) ?tail_l:(Lst Location) ?tail_l0:(Lst Location)]
 
+    # Pattern variables that spell out a NON-EMPTY `o_dlls`. They let the
+    # wrap-around clauses of `in` and `available_key` name an explicitly
+    # `dlst`-shaped original list, which is what keeps those clauses disjoint
+    # from the empty-`o_dlls` clause (see the soundness notes below).
+    define [olh olsts otail_dlls] :=
+           [?olh:Location ?olsts:(Lst 'S) ?otail_dlls:(DLst (Lst 'S))]
+
+    # Fresh binders for existentials that assert a bucket list is a `dlst`,
+    # used where the pattern variables above are already bound by a case split.
+    define [lh2 lsts2 tail_dlls2] :=
+           [?lh2:Location ?lsts2:(Lst 'S) ?tail_dlls2:(DLst (Lst 'S))]
+
     ### initDPrList
     ### Purpose:
     ###     Initialize a distributed list of buckets, one bucket per input location. Each
@@ -206,6 +218,39 @@ module DL_L_S {
         (dlls_locs (dlst lh lsts tail_dlls)) = (lst lh (dlls_locs tail_dlls))
     ])
 
+    ### locs_lst_implies_dlst (PROVEN)
+    ###
+    ### `dlls_locs` records the emptiness of a bucket list: it returns `empty`
+    ### exactly on a `dempty`. So a bucket list whose location projection is a
+    ### non-empty list must itself be a `dlst`. This is the small shape fact that
+    ### lets `insertDPrList_preserves_locs` carry non-emptiness across an
+    ### insertion.
+    define locs_lst_implies_dlst :=
+        (forall dlls l tail_l .
+            ((dlls_locs dlls) = (lst l tail_l))
+            ==> (exists lh lsts tail_dlls . dlls = (dlst lh lsts tail_dlls)))
+    datatype-cases locs_lst_implies_dlst {
+        (dempty htl:Location) =>
+            pick-any l:Location tail_l:(Lst Location)
+            assume hyp := ((dlls_locs (dempty htl)) = (lst l tail_l))
+                let {
+                    collapse := (!chain [ (lst l tail_l)
+                                        = (dlls_locs (dempty htl)) [hyp]
+                                        = empty                    [dlls_locs_axioms] ]);
+                    nc := (!uspec* Lst.lst-no-conf-empty [l tail_l])
+                }
+                (!from-complements
+                    (exists lh lsts tail_dlls . (dempty htl) = (dlst lh lsts tail_dlls))
+                    (!sym collapse) nc)
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            pick-any l:Location tail_l:(Lst Location)
+            assume hyp := ((dlls_locs (dlst lh lsts tail_dlls)) = (lst l tail_l))
+                let { r := (!reflex (dlst lh lsts tail_dlls)) }
+                (!egen* (exists lh2 lsts2 tail_dlls2 .
+                            (dlst lh lsts tail_dlls) = (dlst lh2 lsts2 tail_dlls2))
+                        [lh lsts tail_dlls])
+    }
+
     define insertNAt_preserves_locs :=
         (forall dlls bucket n v .
             (dlls_locs (insertNAt bucket n v dlls)) = (dlls_locs dlls))
@@ -313,9 +358,60 @@ module DL_L_S {
     ### Returns:
     ###     Boolean indicating whether `v` appears in the bucket at position `bucket` or 
     ###      within the next `rv` buckets modulo the length of the list.
+    ###
+    ### INDEX ARITHMETIC — `in` walks in lock step with `available_key`.
+    ###
+    ### Three definitions have to agree on which buckets form the window
+    ### [bucket, bucket + rv] modulo the number of buckets:
+    ###   * `insertDPrList`, the write path, which gets it right by construction
+    ###     through `insertNAt` composed with `countWraps`;
+    ###   * `available_key`, the availability path, which `query_aux` uses as the
+    ###     guard deciding between SOME and NONE;
+    ###   * `in`, the read path, whose result `query_aux` returns.
+    ### If they disagree, `query_aux` guards one walk with a different walk and
+    ### the availability guarantee says nothing about the value returned.
+    ###
+    ### The clauses below therefore mirror `available_key_axioms` one for one,
+    ### with `(Lst.in htv lsts)` exactly where the other has
+    ### `(Location.alive lh)`. Two earlier defects broke that correspondence and
+    ### are fixed here:
+    ###   (i)  the walk did not wrap when `bucket` and `rv` had both reached zero
+    ###        at the `dempty` terminus, so a value stored in a wrapped replica
+    ###        was reported absent; and
+    ###   (ii) the wrap clause decremented `bucket`, which made indices behave
+    ###        modulo (#buckets + 1) instead of modulo #buckets.
+    ### `dlls_index_examples.ath` checks both on a three-bucket ring, against the
+    ### old clauses as well as the new ones.
     declare in: (S) [N N (DLst (Lst S)) (DLst (Lst S)) S] -> Boolean
+    ### SOUNDNESS NOTE on the clause patterns below — do not make them contradict.
+    ###
+    ### `fun` does not give its clauses first-match (priority) semantics: each
+    ### clause becomes an independent, universally quantified biconditional. Two
+    ### clauses whose patterns unify therefore equate the same atom with two
+    ### different right-hand sides, which is a contradiction rather than a
+    ### disambiguation. See the matching note on `available_key` below.
+    ###
+    ### An earlier version of this definition ended with the catch-all
+    ###     (in bucket rv dlls (dempty htl) htv) <==> false
+    ### intended to say "an empty original list holds nothing". Because `dlls`
+    ### and `bucket`/`rv` were unrestricted, it unified with the `dlst` clauses
+    ### at `o_dlls = (dempty htl)` and equated the same atom with
+    ### `(Lst.in htv lsts)`, so the two clauses jointly proved
+    ### `(forall x l . ~ (Lst.in x l))` — no element belongs to any list. With
+    ### `Lst.In.in-lst-axiom` that made the assumption base inconsistent.
+    ###
+    ### The sound reading of that clause is narrower: `dlls` is always a suffix
+    ### of `o_dlls`, so an empty `o_dlls` forces an empty `dlls` too. The two
+    ### `(dempty _) (dempty _)` clauses below say exactly that, and cover the
+    ### only two cases the other clauses leave undetermined. Every clause here
+    ### is sound; the two pairs that do overlap (the wrap clauses with their
+    ### `(dempty _) (dempty _)` counterparts) agree on `false`, so the set stays
+    ### consistent.
     assert in_axioms := (fun [
-        (in zero zero (dempty htl) o_dlls htv) <==> false
+        # Both lists exhausted: there is no bucket anywhere, so nothing is found.
+        # This is the only clause with an empty `o_dlls`, and it is what stops
+        # the wrap-around clause below from looping forever.
+        (in bucket rv (dempty htl0) (dempty htl) htv) <==> false
         (in zero zero (dlst lh lsts tail_dlls) o_dlls htv) <==> (Lst.in htv lsts)
         (in zero (S rv) (dlst lh lsts tail_dlls) o_dlls htv) <==>
             [
@@ -324,12 +420,16 @@ module DL_L_S {
                 (in zero rv tail_dlls o_dlls htv) 
                     when (~ Lst.in htv lsts)
             ]
-        (in zero (S rv) (dempty htl) o_dlls htv) <==> (in zero (S rv) o_dlls o_dlls htv)
         (in (S bucket) rv (dlst lh lsts tail_dlls) o_dlls htv) <==>
             (in bucket rv tail_dlls o_dlls htv)
-        (in (S bucket) rv (dempty htl) o_dlls htv) <==>
-            (in bucket rv o_dlls o_dlls htv)
-        (in bucket rv dlls (dempty htl) htv) <==> false
+        # Wrap-around, in lock step with `available_key`: the walked suffix has
+        # run out while the original list is still non-empty, so restart at the
+        # head of `o_dlls` WITHOUT decrementing `bucket` or `rv`. The `dempty`
+        # terminus is not a real bucket, so it must not consume a step of the
+        # window, and it must not consume a step of the bucket index either.
+        (in bucket rv (dempty htl) (dlst olh olsts otail_dlls) htv) <==>
+            (in bucket rv (dlst olh olsts otail_dlls)
+                          (dlst olh olsts otail_dlls) htv)
     ])
     
     # Generalized: dlls and o_dlls are allowed to be two *different* init lists.
@@ -345,13 +445,42 @@ module DL_L_S {
                 init_empty := (!chain [ (initDPrList f htl empty)
                                         = (dempty htl) [initDPrList_axioms] ])
             }
-            (!by-contradiction
-                (~ in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
-                (!chain [
-                    (in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
-                    ==> (in zero zero (dempty htl) (initDPrList f htl lsts2) v) [init_empty]
-                    ==> false                                                   [in_axioms]
-                ]))
+            # `in` no longer has a clause that returns false for an empty `dlls`
+            # against an arbitrary `o_dlls`: with a non-empty `o_dlls` the walk
+            # wraps instead. So we split on the shape of the original list.
+            (!cases (!uspec* initDPrList_characterization [f htl lsts2])
+                # Subcase 1: the original list is empty too, so nothing to wrap
+                # onto and the (dempty _) (dempty _) clause applies.
+                assume empty_lsts2 := ((initDPrList f htl lsts2) = (dempty htl))
+                (!by-contradiction
+                    (~ in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
+                    (!chain [
+                        (in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
+                        ==> (in zero zero (dempty htl) (initDPrList f htl lsts2) v)  [init_empty]
+                        ==> (in zero zero (dempty htl) (dempty htl) v)               [empty_lsts2]
+                        ==> false                                                    [in_axioms]
+                    ]))
+                # Subcase 2: the original list is non-empty, so the walk wraps
+                # onto its head. That head is a freshly initialized bucket, hence
+                # empty, and with rv = 0 the walk stops there.
+                assume nonempty_lsts2 :=
+                    (exists l tail_l .
+                        (initDPrList f htl lsts2) = (dlst l empty (initDPrList f htl tail_l)))
+                pick-witnesses l2 tail_l2 for nonempty_lsts2 lsts2_char
+                (!by-contradiction
+                    (~ in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
+                    (!chain [
+                        (in zero zero (initDPrList f htl empty) (initDPrList f htl lsts2) v)
+                        ==> (in zero zero (dempty htl) (initDPrList f htl lsts2) v)   [init_empty]
+                        ==> (in zero zero (dempty htl)
+                                          (dlst l2 empty (initDPrList f htl tail_l2)) v) [lsts2_char]
+                        # wrap-around onto the head of the original list
+                        ==> (in zero zero (dlst l2 empty (initDPrList f htl tail_l2))
+                                          (dlst l2 empty (initDPrList f htl tail_l2)) v) [in_axioms]
+                        ==> (Lst.in v empty)                                             [in_axioms]
+                        ==> false                                                        [Lst.in_axioms]
+                    ]))
+            )
       | (lst l0 tail_l) =>
             pick-any lsts2 f v htl
             let {
@@ -396,7 +525,10 @@ module DL_L_S {
                         (~ in zero (S rv0) (initDPrList f htl lsts1) (initDPrList f htl lsts2) v)
                         (!chain [
                             (in zero (S rv0) (initDPrList f htl lsts1) (initDPrList f htl lsts2) v)
-                            ==> (in zero (S rv0) (initDPrList f htl lsts1) (dempty htl) v) [empty_lsts2]
+                            # Both init-lists are empty here, so rewrite both positions
+                            # and appeal to the (dempty _) (dempty _) clause of `in`.
+                            ==> (in zero (S rv0) (dempty htl) (initDPrList f htl lsts2) v) [empty_lsts1]
+                            ==> (in zero (S rv0) (dempty htl) (dempty htl) v)              [empty_lsts2]
                             ==> false                                                       [in_axioms]
                         ]))
                     # Subcase A2: init lsts2 = dlst l2 empty (init tail_l2); use wrap then IH
@@ -469,17 +601,47 @@ module DL_L_S {
             }
             pick-any rv lsts1 lsts2 f v htl
             (!cases (!uspec* initDPrList_characterization [f htl lsts1])
-                # Case A: init lsts1 = dempty -> wrap onto lsts2, then IH at smaller bucket
+                # Case A: init lsts1 = dempty. The wrap-around no longer decrements
+                # the bucket index — the `dempty` terminus is not a real bucket —
+                # so we wrap and then take one genuine step over the head of the
+                # original list. That step is what makes the index smaller and
+                # lets the IH apply.
                 assume empty_lsts1 := ((initDPrList f htl lsts1) = (dempty htl))
-                let {
-                    ih := (!uspec* IH [rv lsts2 lsts2 f v htl])
-                }
-                (!chain [
-                    (in (S bucket) rv (initDPrList f htl lsts1) (initDPrList f htl lsts2) v)
-                    ==> (in (S bucket) rv (dempty htl) (initDPrList f htl lsts2) v)          [empty_lsts1]
-                    ==> (in bucket rv (initDPrList f htl lsts2) (initDPrList f htl lsts2) v) [in_axioms]
-                    ==> false                                                                [ih]
-                ])
+                (!cases (!uspec* initDPrList_characterization [f htl lsts2])
+                    # Subcase A1: nothing to wrap onto, so `in` is false outright.
+                    assume empty_lsts2 := ((initDPrList f htl lsts2) = (dempty htl))
+                    (!chain [
+                        (in (S bucket) rv (initDPrList f htl lsts1) (initDPrList f htl lsts2) v)
+                        ==> (in (S bucket) rv (dempty htl) (initDPrList f htl lsts2) v) [empty_lsts1]
+                        ==> (in (S bucket) rv (dempty htl) (dempty htl) v)              [empty_lsts2]
+                        ==> false                                                       [in_axioms]
+                    ])
+                    # Subcase A2: wrap onto the head of the original list, then step
+                    # past that head. The bucket index drops from (S bucket) to
+                    # bucket, which is what the IH needs.
+                    assume nonempty_lsts2 :=
+                        (exists l tail_l .
+                            (initDPrList f htl lsts2) = (dlst l empty (initDPrList f htl tail_l)))
+                    pick-witnesses l2 tail_l2 for nonempty_lsts2 lsts2_char
+                    let {
+                        ih := (!uspec* IH [rv tail_l2 lsts2 f v htl])
+                    }
+                    (!chain [
+                        (in (S bucket) rv (initDPrList f htl lsts1) (initDPrList f htl lsts2) v)
+                        ==> (in (S bucket) rv (dempty htl) (initDPrList f htl lsts2) v)  [empty_lsts1]
+                        ==> (in (S bucket) rv (dempty htl)
+                                             (dlst l2 empty (initDPrList f htl tail_l2)) v) [lsts2_char]
+                        # wrap-around: bucket index untouched
+                        ==> (in (S bucket) rv (dlst l2 empty (initDPrList f htl tail_l2))
+                                             (dlst l2 empty (initDPrList f htl tail_l2)) v) [in_axioms]
+                        # one real bucket consumed: (S bucket) becomes bucket
+                        ==> (in bucket rv (initDPrList f htl tail_l2)
+                                          (dlst l2 empty (initDPrList f htl tail_l2)) v)    [in_axioms]
+                        ==> (in bucket rv (initDPrList f htl tail_l2)
+                                          (initDPrList f htl lsts2) v)                      [lsts2_char]
+                        ==> false                                                            [ih]
+                    ])
+                )
                 # Case B: init lsts1 = dlst l1 empty (init tail_l1) -> advance dlls, then IH
                 assume nonempty_lsts1 :=
                     (exists l tail_l .
@@ -734,8 +896,35 @@ module DL_L_S {
     ###     Boolean indicating whether the primary bucket or any of the next `rv` buckets
     ###     (modulo the list length) is at a location that is currently alive.
     declare available_key: (S) [N N (DLst (Lst S)) (DLst (Lst S))] -> Boolean
+    ### SOUNDNESS NOTE on the clause patterns below — do not make them overlap.
+    ###
+    ### `fun` does not give its clauses first-match (priority) semantics: each
+    ### clause is asserted as an independent, universally quantified
+    ### biconditional. Two clauses whose patterns can be unified therefore equate
+    ### the same atom with two different right-hand sides, which is a
+    ### contradiction rather than a disambiguation.
+    ###
+    ### An earlier version of this definition opened with the catch-all
+    ###     (available_key bucket rv dlls (dempty htl)) <==> false
+    ### in which `dlls` was unrestricted. Instantiating `o_dlls` to `(dempty htl)`
+    ### in the second clause equates the very same atom with `(Location.alive lh)`,
+    ### so the two clauses jointly prove `(forall lh . ~ (Location.alive lh))` —
+    ### every location is dead. Together with `Location.aliveLocal` that makes the
+    ### assumption base inconsistent, and it makes the hypothesis of
+    ### `dht_replication_correctness` unsatisfiable (hence the theorem vacuous),
+    ### since `no_consecutive_failures rv dlls dlls` requires an alive location in
+    ### every window.
+    ###
+    ### The clauses below are pairwise NON-OVERLAPPING (they differ in the
+    ### constructor of `bucket`, `rv`, `dlls` or `o_dlls`) and jointly exhaustive
+    ### over the constructors of (N, N, DLst, DLst), so the definition is total,
+    ### consistent, and terminating.
     assert available_key_axioms := (fun [
-        (available_key bucket rv dlls (dempty htl)) <==> false
+        # Both the walked suffix and the original list are exhausted: there is no
+        # bucket anywhere, so nothing is available. This is the only clause with
+        # an empty `o_dlls`, and it is what stops the wrap-around clause below
+        # from looping forever.
+        (available_key bucket rv (dempty htl0) (dempty htl)) <==> false
         (available_key zero zero (dlst lh lsts tail_dlls) o_dlls) <==> (Location.alive lh)
         (available_key zero (S rv) (dlst lh lsts tail_dlls) o_dlls) <==>
             [
@@ -746,20 +935,17 @@ module DL_L_S {
             ]
         (available_key (S bucket) rv (dlst lh lsts tail_dlls) o_dlls) <==>
             (available_key bucket rv tail_dlls o_dlls)
-        # Wrap-around (merged rule). When the current suffix `dlls`
-        # runs out but the original list `o_dlls` is non-empty, restart the walk at
-        # the head of `o_dlls` WITHOUT decrementing `bucket`/`rv`. This single rule
-        # replaces the three former empty-`dlls` clauses, fixing two defects:
-        #   (i) the old `(zero zero (dempty htl) o_dlls) <==> false` clause returned
-        #       false instead of wrapping (reachable when the home bucket is the last
-        #       one and rv exhausts exactly at the end), and
-        #   (ii) the old `(S bucket) rv (dempty htl) o_dlls` clause decremented
-        #       `bucket` on wrap, making bucket indices behave modulo (#buckets + 1).
-        # Termination is preserved by the first clause above: when `o_dlls` itself is
-        # empty the guard fires (first match) and returns false, so the wrap cannot
-        # loop forever.
-        (available_key bucket rv (dempty htl) o_dlls) <==>
-            (available_key bucket rv o_dlls o_dlls)
+        # Wrap-around. The walked suffix `dlls` has run out while the original
+        # list `o_dlls` is still non-empty, so restart the walk at the head of
+        # `o_dlls` WITHOUT decrementing `bucket`/`rv`: the `dempty` terminus is
+        # not a real bucket, so it must not consume a step of the window. Making
+        # the `o_dlls` pattern explicitly `dlst` is what keeps this clause
+        # disjoint from the first one. Termination holds because every wrap is
+        # immediately followed by a real bucket, which does decrement
+        # `bucket` + `rv`.
+        (available_key bucket rv (dempty htl) (dlst olh olsts otail_dlls)) <==>
+            (available_key bucket rv (dlst olh olsts otail_dlls)
+                                     (dlst olh olsts otail_dlls))
     ])
 
     ### available_key invariance under insertion
@@ -835,20 +1021,54 @@ module DL_L_S {
     ### bucket position the (rv + 1)-replica window contains at least one
     ### alive location.
     ###
-    ### The predicate is defined recursively on the distributed bucket
-    ### list `dlls`, asserting that the window opened at the current head
-    ### is alive (via `available_key zero rv ...`) and that the same
-    ### property holds on the tail. The `o_dlls` argument is threaded
-    ### through unchanged so that the inner `available_key` call can wrap
-    ### around the list when its rv+1-step walk runs past the end. In the
-    ### canonical use `no_consecutive_failures rv dlls dlls` (same list in
-    ### both slots), this reads as: "every contiguous (rv + 1)-window in
-    ### dlls, including those that wrap, contains at least one alive
-    ### bucket."
+    ### WHY `rv` IS NOT DECREMENTED IN THE RECURSIVE CALL.
+    ###
+    ### The second clause below passes `rv` unchanged to the recursive call,
+    ### which reads at first like a missing countdown. It is not. There are two
+    ### separate recursions here and they count different things:
+    ###
+    ###   * `available_key` walks ONE window. It is the recursion that consumes
+    ###     `rv`: from a given position it inspects at most `rv + 1` buckets,
+    ###     decrementing `rv` at each dead bucket and stopping as soon as it
+    ###     finds a live one.
+    ###   * `no_consecutive_failures` walks the STARTING POSITIONS. Its
+    ###     recursion consumes the bucket list, not the window budget. For the
+    ###     suffix `(dlst lh lsts tail_dlls)` it demands a live window opening at
+    ###     that suffix's head, then re-opens a window of the SAME size at the
+    ###     next position. `rv` is a fixed parameter of the whole predicate —
+    ###     the window width — so decrementing it here would shrink the window
+    ###     as the walk advances, which is exactly what we do not want.
+    ###
+    ### So the predicate is the conjunction, over every bucket index i, of
+    ### "the window [i, i+rv] contains an alive location", where the windows
+    ### wrap because `available_key` restarts at the head of `o_dlls` when the
+    ### suffix runs out. That conjunction says precisely: no run of `rv + 1`
+    ### consecutive bucket locations is entirely dead.
+    ###
+    ### HOW THE "NO CONSECUTIVE FAILURES" CONDITION IS ENSURED.
+    ###
+    ### It is not ensured by the predicate — the predicate only states it. It is
+    ### a HYPOTHESIS discharged outside the formalism, by the deployment: a
+    ### placement in which no `rv + 1` adjacent replicas share a failure domain.
+    ### The theorems that consume it (`DHTable.dht_replication_correctness`)
+    ### take it as an antecedent and conclude availability, which is the
+    ### conditional guarantee the paper claims.
+    ###
+    ### Because the predicate is only ever an antecedent, it is worth knowing
+    ### that it is neither unsatisfiable nor trivial. `dlls_ncf_examples.ath`
+    ### checks three concrete instances on a three-bucket ring:
+    ###   L U L with rv = 1  holds;  U U L with rv = 1  fails;
+    ###   U U L with rv = 2  holds.
+    ### The first shows the hypothesis of `dht_replication_correctness` is
+    ### satisfiable (so the theorem is not vacuous), the second shows the
+    ### predicate is refutable (so it is not trivially true), and the pair of
+    ### the last two shows it is monotone in `rv` in the direction the paper
+    ### claims: raising the replication value tolerates longer failure runs.
     ###
     ### Parameters:
     ###     rv::N                  : replication value (window size = rv + 1).
-    ###     dlls::(DLst (Lst S))   : current suffix being checked.
+    ###     dlls::(DLst (Lst S))   : suffix whose head is the next starting
+    ###                              position to check.
     ###     o_dlls::(DLst (Lst S)) : original list, used for wrap-around
     ###                              inside `available_key`.
     declare no_consecutive_failures: (S) [N (DLst (Lst S)) (DLst (Lst S))] -> Boolean
@@ -858,6 +1078,303 @@ module DL_L_S {
             ((available_key zero rv (dlst lh lsts tail_dlls) o_dlls) &
              (no_consecutive_failures rv tail_dlls o_dlls))
     ])
+
+    ### ncf_key_available_gen (PROVEN)
+    ###
+    ### "Every starting position is covered" implies "this starting position is
+    ### covered". This is the lookup step that turns the global replication
+    ### invariant into the per-key precondition `available` demands, and it is
+    ### what `DHTable.no_consecutive_failures_implies_key_available` is built on.
+    ###
+    ### The original list is written out as `(dlst olh olsts otail_dlls)` rather
+    ### than carried as a variable with a side condition. That is not cosmetic:
+    ### the statement is FALSE for an empty original list, since
+    ### `available_key` is false there while `no_consecutive_failures` is
+    ### vacuously true, and naming the `dlst` shape in the statement is what rules
+    ### that case out. Note also that a hypothesis of the form
+    ### `(~ (dlls = (dempty htl)))` would NOT do the job: it only says `dlls`
+    ### differs from the empty list AT ONE PARTICULAR LOCATION, and
+    ### `(dempty htl2)` for some other `htl2` still satisfies it.
+    ###
+    ### The proof is an induction on the bucket index `n`, with a case split on
+    ### the walked list at each step. The wrap-around case is the interesting one:
+    ### wrapping leaves `n` untouched, so it cannot appeal to the induction
+    ### hypothesis on its own. It takes one further step over the head of the
+    ### original list, and that step is what decrements `n`.
+    define ncf_key_available_gen :=
+        (forall n dlls rv olh olsts otail_dlls .
+            ((no_consecutive_failures rv dlls (dlst olh olsts otail_dlls)) &
+             (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                         (dlst olh olsts otail_dlls)))
+            ==> (available_key n rv dlls (dlst olh olsts otail_dlls)))
+
+    define [ak-empty-empty ak-zero-zero ak-alive ak-dead ak-step ak-wrap] :=
+           available_key_axioms
+    define [ncf-empty ncf-step] := no_consecutive_failures_axioms
+
+    ### ncf_from_all_windows (PROVEN)
+    ###
+    ### The converse of `ncf_key_available_gen`: if the window opening at every
+    ### bucket index is available, then the replication invariant holds. Together
+    ### the two give a characterization of `no_consecutive_failures` that is much
+    ### easier to transport across an insertion than the recursive definition is,
+    ### because it mentions the bucket list only through `available_key`.
+    ###
+    ### The induction is structural on the walked list, and needs no side
+    ### condition: the empty list satisfies the invariant vacuously, and at a
+    ### `dlst` the window at index zero is the first conjunct while the windows
+    ### at every higher index are exactly the tail's windows.
+    define ncf_from_all_windows :=
+        (forall dlls o_dlls rv .
+            (forall n . (available_key n rv dlls o_dlls))
+            ==> (no_consecutive_failures rv dlls o_dlls))
+
+    by-induction ncf_from_all_windows {
+        (dempty htl:Location) =>
+            pick-any o_dlls:(DLst (Lst 'S)) rv:N
+            assume all := (forall n . (available_key n rv (dempty htl) o_dlls))
+                let { e := (!uspec* ncf-empty [rv htl o_dlls]) }
+                (!mp (!right-iff e) (!true-intro))
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall o_dlls rv .
+                          (forall n . (available_key n rv tail_dlls o_dlls))
+                          ==> (no_consecutive_failures rv tail_dlls o_dlls)) }
+            pick-any o_dlls:(DLst (Lst 'S)) rv:N
+            assume all := (forall n . (available_key n rv (dlst lh lsts tail_dlls) o_dlls))
+                let {
+                    # index zero gives the window at this suffix's own head
+                    win := (!uspec all zero);
+                    # index (S n) on this suffix is index n on the tail
+                    tailall :=
+                        pick-any n:N
+                            let { st := (!uspec* ak-step
+                                            [lh rv lsts tail_dlls n o_dlls]) }
+                            (!mp (!left-iff st) (!uspec all (S n)));
+                    ihx := (!mp (!uspec* IH [o_dlls rv]) tailall);
+                    unf := (!uspec* ncf-step [lh rv lsts tail_dlls o_dlls])
+                }
+                (!mp (!right-iff unf) (!both win ihx))
+    }
+
+    by-induction ncf_key_available_gen {
+        zero =>
+          datatype-cases
+            (forall dlls rv olh olsts otail_dlls .
+                ((no_consecutive_failures rv dlls (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                ==> (available_key zero rv dlls (dlst olh olsts otail_dlls))) {
+            (dempty htl:Location) =>
+              pick-any rv:N olh:Location olsts:(Lst 'S) otail_dlls:(DLst (Lst 'S))
+              assume hyp :=
+                ((no_consecutive_failures rv (dempty htl) (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                let {
+                    # The walked list is exhausted, so the window opens at the
+                    # head of the original list. That window is the first
+                    # conjunct the invariant gives for the original list itself.
+                    h2   := (!right-and hyp);
+                    unf  := (!uspec* ncf-step
+                                [olh rv olsts otail_dlls (dlst olh olsts otail_dlls)]);
+                    conj := (!mp (!left-iff unf) h2);
+                    win  := (!left-and conj);
+                    wrap := (!uspec* ak-wrap [rv htl olh olsts otail_dlls zero])
+                }
+                (!mp (!right-iff wrap) win)
+          | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+              pick-any rv:N olh:Location olsts:(Lst 'S) otail_dlls:(DLst (Lst 'S))
+              assume hyp :=
+                ((no_consecutive_failures rv (dlst lh lsts tail_dlls)
+                                             (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                let {
+                    # Bucket index zero: the window we need is exactly the first
+                    # conjunct of the invariant at this suffix.
+                    h1   := (!left-and hyp);
+                    unf  := (!uspec* ncf-step
+                                [lh rv lsts tail_dlls (dlst olh olsts otail_dlls)]);
+                    conj := (!mp (!left-iff unf) h1)
+                }
+                (!left-and conj)
+          }
+      | (S n) =>
+          let {
+            IH := (forall dlls rv olh olsts otail_dlls .
+                    ((no_consecutive_failures rv dlls (dlst olh olsts otail_dlls)) &
+                     (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                                 (dlst olh olsts otail_dlls)))
+                    ==> (available_key n rv dlls (dlst olh olsts otail_dlls)))
+          }
+          datatype-cases
+            (forall dlls rv olh olsts otail_dlls .
+                ((no_consecutive_failures rv dlls (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                ==> (available_key (S n) rv dlls (dlst olh olsts otail_dlls))) {
+            (dempty htl:Location) =>
+              pick-any rv:N olh:Location olsts:(Lst 'S) otail_dlls:(DLst (Lst 'S))
+              assume hyp :=
+                ((no_consecutive_failures rv (dempty htl) (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                let {
+                    h2   := (!right-and hyp);
+                    # Peel the invariant on the original list to get it on the tail.
+                    unf  := (!uspec* ncf-step
+                                [olh rv olsts otail_dlls (dlst olh olsts otail_dlls)]);
+                    conj := (!mp (!left-iff unf) h2);
+                    tl   := (!right-and conj);
+                    # IH at the tail, one bucket further along.
+                    ihx  := (!mp (!uspec* IH [otail_dlls rv olh olsts otail_dlls])
+                                 (!both tl h2));
+                    # Wrap first (index untouched), then take one real bucket
+                    # step, which is what turns (S n) into n.
+                    step := (!uspec* ak-step [olh rv olsts otail_dlls n
+                                              (dlst olh olsts otail_dlls)]);
+                    mid  := (!mp (!right-iff step) ihx);
+                    wrap := (!uspec* ak-wrap [rv htl olh olsts otail_dlls (S n)])
+                }
+                (!mp (!right-iff wrap) mid)
+          | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+              pick-any rv:N olh:Location olsts:(Lst 'S) otail_dlls:(DLst (Lst 'S))
+              assume hyp :=
+                ((no_consecutive_failures rv (dlst lh lsts tail_dlls)
+                                             (dlst olh olsts otail_dlls)) &
+                 (no_consecutive_failures rv (dlst olh olsts otail_dlls)
+                                             (dlst olh olsts otail_dlls)))
+                let {
+                    h1   := (!left-and hyp);
+                    h2   := (!right-and hyp);
+                    unf  := (!uspec* ncf-step
+                                [lh rv lsts tail_dlls (dlst olh olsts otail_dlls)]);
+                    conj := (!mp (!left-iff unf) h1);
+                    tl   := (!right-and conj);
+                    ihx  := (!mp (!uspec* IH [tail_dlls rv olh olsts otail_dlls])
+                                 (!both tl h2));
+                    step := (!uspec* ak-step [lh rv lsts tail_dlls n
+                                              (dlst olh olsts otail_dlls)])
+                }
+                (!mp (!right-iff step) ihx)
+          }
+    }
+
+    ### ncf_insert_inv (PROVEN)
+    ###
+    ### The replication invariant is unaffected by an insertion. This is what
+    ### `DHTable.dht_replication_correctness` needs in order to run its induction
+    ### backwards, from the bucket list after an insert to the one before it.
+    ###
+    ### The recursive definition of `no_consecutive_failures` is awkward to
+    ### transport across `insertDPrList`, because `insertDPrList` is not defined
+    ### by structural recursion on the bucket list (it composes `insertNAt` with
+    ### `countWraps`). The two lemmas above avoid that entirely: they replace the
+    ### recursion by the equivalent statement "the window at every bucket index is
+    ### available", which mentions the bucket list only through `available_key`,
+    ### and `available_key_insert_invariant` already says insertion does not
+    ### change that. Insertion only ever prepends values into buckets, so it
+    ### touches no location, which is the reason the whole thing goes through.
+    define ncf_insert_inv :=
+        (forall n rv v0 dlls .
+            (no_consecutive_failures rv
+                (insertDPrList n rv v0 dlls)
+                (insertDPrList n rv v0 dlls))
+            <==>
+            (no_consecutive_failures rv dlls dlls))
+
+    conclude ncf_insert_inv
+        pick-any n:N rv:N v0:'S dlls:(DLst (Lst 'S))
+        (!cases (!uspec dlst-no-junk dlls)
+            # Empty bucket list: the insertion is a no-op, so the two sides are
+            # the same sentence.
+            assume is_empty := (exists htl . dlls = (dempty htl))
+                pick-witness wh for is_empty wh_eq
+                let {
+                    collapse := (!chain [
+                        (insertDPrList n rv v0 dlls)
+                        = (insertDPrList n rv v0 (dempty wh)) [wh_eq]
+                        = (dempty wh)                         [insert_into_empty_dlls]
+                        = dlls                                [wh_eq] ])
+                }
+                (!chain [
+                    (no_consecutive_failures rv (insertDPrList n rv v0 dlls)
+                                                (insertDPrList n rv v0 dlls))
+                    <==> (no_consecutive_failures rv dlls dlls) [collapse] ])
+            # Non-empty bucket list: go through the every-window characterization.
+            assume is_dlst := (exists lh lsts tail_dlls . dlls = (dlst lh lsts tail_dlls))
+                pick-witnesses dlh dlsts dtl for is_dlst dlls_char
+                let {
+                    # The insertion leaves the locations alone, so the result is
+                    # still a non-empty bucket list.
+                    locs_eq   := (!uspec* insertDPrList_preserves_locs [n rv v0 dlls]);
+                    locs_dlst := (!chain [
+                        (dlls_locs (insertDPrList n rv v0 dlls))
+                        = (dlls_locs dlls)                 [locs_eq]
+                        = (dlls_locs (dlst dlh dlsts dtl)) [dlls_char]
+                        = (lst dlh (dlls_locs dtl))        [dlls_locs_axioms] ]);
+                    ins_dlst  := (!mp (!uspec* locs_lst_implies_dlst
+                                        [(insertDPrList n rv v0 dlls)
+                                         dlh (dlls_locs dtl)])
+                                      locs_dlst)
+                }
+                pick-witnesses ilh ilsts itl for ins_dlst ins_char
+                let {
+                    fwd :=
+                      assume h := (no_consecutive_failures rv
+                                      (insertDPrList n rv v0 dlls)
+                                      (insertDPrList n rv v0 dlls))
+                        let {
+                            h_dlst := (!chain-> [ h
+                                ==> (no_consecutive_failures rv (dlst ilh ilsts itl)
+                                                                (dlst ilh ilsts itl))
+                                    [ins_char] ]);
+                            allw :=
+                              pick-any m:N
+                                let {
+                                    g   := (!mp (!uspec* ncf_key_available_gen
+                                                  [m (dlst ilh ilsts itl) rv
+                                                   ilh ilsts itl])
+                                                (!both h_dlst h_dlst));
+                                    gi  := (!chain-> [ g
+                                             ==> (available_key m rv
+                                                    (insertDPrList n rv v0 dlls)
+                                                    (insertDPrList n rv v0 dlls))
+                                                 [ins_char] ]);
+                                    inv := (!uspec* available_key_insert_invariant
+                                                [n rv v0 dlls m rv])
+                                }
+                                (!mp (!left-iff inv) gi)
+                        }
+                        (!mp (!uspec* ncf_from_all_windows [dlls dlls rv]) allw);
+                    bwd :=
+                      assume h := (no_consecutive_failures rv dlls dlls)
+                        let {
+                            h_dlst := (!chain-> [ h
+                                ==> (no_consecutive_failures rv (dlst dlh dlsts dtl)
+                                                                (dlst dlh dlsts dtl))
+                                    [dlls_char] ]);
+                            allw :=
+                              pick-any m:N
+                                let {
+                                    g   := (!mp (!uspec* ncf_key_available_gen
+                                                  [m (dlst dlh dlsts dtl) rv
+                                                   dlh dlsts dtl])
+                                                (!both h_dlst h_dlst));
+                                    gd  := (!chain-> [ g
+                                             ==> (available_key m rv dlls dlls)
+                                                 [dlls_char] ]);
+                                    inv := (!uspec* available_key_insert_invariant
+                                                [n rv v0 dlls m rv])
+                                }
+                                (!mp (!right-iff inv) gd)
+                        }
+                        (!mp (!uspec* ncf_from_all_windows
+                                [(insertDPrList n rv v0 dlls)
+                                 (insertDPrList n rv v0 dlls) rv])
+                             allw)
+                }
+                (!equiv fwd bwd))
 
 
     ### values
