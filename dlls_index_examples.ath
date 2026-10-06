@@ -1,0 +1,310 @@
+### dlls_index_examples.ath
+###
+### Concrete, machine-checked tests pinning down the bucket-index arithmetic of
+### `DL_L_S.in` and `DL_L_S.available_key` (both defined in dlls.ath).
+###
+### Why this file exists.  A \ac{DHT} with replication value `rv` stores every
+### value in the `rv + 1` consecutive buckets starting at `(hf at v)`, counted
+### modulo the number of buckets.  Three separate definitions have to agree on
+### what "modulo the number of buckets" means:
+###
+###   * `insertDPrList` — the write path.  It gets the modulo semantics right by
+###     construction, via `insertNAt` composed with `countWraps`.
+###   * `available_key`  — the availability path.  `query_aux` uses it as the
+###     guard that decides between `SOME` and `NONE`.
+###   * `in`             — the read path.  `query_aux` returns its result.
+###
+### If the three disagree about which buckets form a window, then `query_aux`
+### guards one walk with a different walk, and the availability guarantee stops
+### saying anything about the value actually returned.  Two defects used to make
+### `in` disagree with the other two:
+###
+###   (i)  the walk did not wrap when the bucket index and the replication
+###        counter both hit zero at the `dempty` terminus, so a value stored in a
+###        wrapped replica was reported absent; and
+###   (ii) the wrap clause decremented the bucket index, which made indices
+###        behave modulo (#buckets + 1) rather than modulo #buckets.
+###
+### Both are fixed, and `in` now walks in lock step with `available_key`: the two
+### definitions have the same five clauses, with `(Lst.in htv lsts)` where the
+### other has `(Location.alive lh)`.  The examples below check that on a
+### three-bucket ring.
+###
+### Run with:  athena-run dlls_index_examples
+
+load "dlls"
+
+domain Val
+declare vA: Val
+
+module IndexExamples {
+    open DL_L_S
+
+    define [i1 i2 i3a i3b i4 i5] := in_axioms
+    define [a1 a2 a3a a3b a4 a5] := available_key_axioms
+
+    define L := Location.localhost         # a location that is alive
+    define U := Location.unreachableHost   # a location that is dead
+
+    define E  := (empty:(Lst Val))         # an empty bucket
+    define BA := (lst vA (empty:(Lst Val)))  # a bucket holding vA
+
+    define one   := (S zero)
+    define two   := (S one)
+    define three := (S two)
+    define four  := (S three)
+
+    # `vA` really is in the bucket `BA`, and really is not in an empty bucket.
+    define inBA    := (Lst.in vA BA)
+    define notInE  := (~ (Lst.in vA E))
+
+    #-------------------------------------------------------------------
+    # Ring 1: three buckets, vA stored in bucket 0 only.
+    #-------------------------------------------------------------------
+    define r0_t3 := (dempty L)
+    define r0_t2 := (dlst L E r0_t3)      # bucket 2
+    define r0_t1 := (dlst L E r0_t2)      # bucket 1
+    define ring0 := (dlst L BA r0_t1)     # bucket 0, holds vA
+
+    ### Defect (i).  Query index 3 on a three-bucket ring is bucket 0, reached by
+    ### wrapping with the replication counter already at zero.  The walk has to
+    ### take that wrap; the old axioms returned false at the terminus instead.
+    define ex_wrap_at_zero_zero := (in three zero ring0 ring0 vA)
+
+    conclude ex_wrap_at_zero_zero
+        let {
+            memb := (!chain-> [ (!reflex vA) ==> inBA [Lst.In.in-lst-axiom] ]);
+            # bucket 0 of the original list holds vA
+            hit  := (!chain-> [ memb
+                                ==> (in zero zero ring0 ring0 vA)
+                                    [in_axioms] ]);
+            # the terminus wraps back to the head of the original list
+            wrap := (!chain-> [ hit
+                                ==> (in zero zero r0_t3 ring0 vA)
+                                    [in_axioms] ]);
+            # walk the three bucket steps back up: 1, 2, 3
+            s1   := (!chain-> [ wrap
+                                ==> (in one zero r0_t2 ring0 vA)
+                                    [in_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (in two zero r0_t1 ring0 vA)
+                                    [in_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (in three zero ring0 ring0 vA)
+                        [in_axioms] ])
+
+    #-------------------------------------------------------------------
+    # Ring 2: three buckets, vA stored in bucket 1 only.
+    #-------------------------------------------------------------------
+    define r1_t3 := (dempty L)
+    define r1_t2 := (dlst L E r1_t3)      # bucket 2
+    define r1_t1 := (dlst L BA r1_t2)     # bucket 1, holds vA
+    define ring1 := (dlst L E r1_t1)      # bucket 0
+
+    ### Defect (ii).  Query index 4 on a three-bucket ring is bucket 1, since
+    ### 4 = 1 (mod 3).  Reaching it requires the wrap to leave the bucket index
+    ### alone; the old axioms decremented it there and landed on bucket 0, which
+    ### is 4 (mod 4).
+    define ex_wrap_keeps_bucket := (in four zero ring1 ring1 vA)
+
+    conclude ex_wrap_keeps_bucket
+        let {
+            memb := (!chain-> [ (!reflex vA) ==> inBA [Lst.In.in-lst-axiom] ]);
+            # bucket 1 of the original list holds vA
+            hit  := (!chain-> [ memb
+                                ==> (in zero zero r1_t1 ring1 vA)
+                                    [in_axioms] ]);
+            # step back to index 1 against the original list
+            b1   := (!chain-> [ hit
+                                ==> (in one zero ring1 ring1 vA)
+                                    [in_axioms] ]);
+            # the terminus wraps WITHOUT touching the bucket index
+            wrap := (!chain-> [ b1
+                                ==> (in one zero r1_t3 ring1 vA)
+                                    [in_axioms] ]);
+            s1   := (!chain-> [ wrap
+                                ==> (in two zero r1_t2 ring1 vA)
+                                    [in_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (in three zero r1_t1 ring1 vA)
+                                    [in_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (in four zero ring1 ring1 vA)
+                        [in_axioms] ])
+
+    ### The companion negative check that fixes the index exactly.  Query index 4
+    ### must NOT reach bucket 0.  On `ring0`, where vA sits in bucket 0 alone,
+    ### index 4 lands on bucket 1 and finds nothing.  Under the old wrap clause
+    ### this was provably true, which is precisely defect (ii).
+    define ex_index_four_is_not_zero := (~ (in four zero ring0 ring0 vA))
+
+    conclude ex_index_four_is_not_zero
+        let {
+            nm   := (!uspec Lst.In.in-empty-axiom vA);
+            miss := (!chain-> [ nm
+                                ==> (~ (in zero zero r0_t1 ring0 vA))
+                                    [in_axioms] ]);
+            b1   := (!chain-> [ miss
+                                ==> (~ (in one zero ring0 ring0 vA))
+                                    [in_axioms] ]);
+            wrap := (!chain-> [ b1
+                                ==> (~ (in one zero r0_t3 ring0 vA))
+                                    [in_axioms] ]);
+            s1   := (!chain-> [ wrap
+                                ==> (~ (in two zero r0_t2 ring0 vA))
+                                    [in_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (~ (in three zero r0_t1 ring0 vA))
+                                    [in_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (~ (in four zero ring0 ring0 vA))
+                        [in_axioms] ])
+
+    #-------------------------------------------------------------------
+    # Ring 3: the lock-step check.  Same three-bucket ring, bucket 1 holds vA
+    # and its location is dead.  Query index 4 must land on bucket 1 for BOTH
+    # predicates: `in` reports that vA is there, `available_key` reports that it
+    # cannot be reached.  This is exactly the state in which `query_aux` must
+    # answer NONE, and it is only meaningful because the two walks agree.
+    #-------------------------------------------------------------------
+    define r2_t3 := (dempty L)
+    define r2_t2 := (dlst L E r2_t3)      # bucket 2, alive
+    define r2_t1 := (dlst U BA r2_t2)     # bucket 1, DEAD, holds vA
+    define ring2 := (dlst L E r2_t1)      # bucket 0, alive
+
+    define ex_lockstep_in := (in four zero ring2 ring2 vA)
+
+    conclude ex_lockstep_in
+        let {
+            memb := (!chain-> [ (vA = vA) ==> inBA [Lst.In.in-lst-axiom] ]);
+            hit  := (!chain-> [ memb
+                                ==> (in zero zero r2_t1 ring2 vA)
+                                    [in_axioms] ]);
+            b1   := (!chain-> [ hit
+                                ==> (in one zero ring2 ring2 vA)
+                                    [in_axioms] ]);
+            wrap := (!chain-> [ b1
+                                ==> (in one zero r2_t3 ring2 vA)
+                                    [in_axioms] ]);
+            s1   := (!chain-> [ wrap
+                                ==> (in two zero r2_t2 ring2 vA)
+                                    [in_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (in three zero r2_t1 ring2 vA)
+                                    [in_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (in four zero ring2 ring2 vA)
+                        [in_axioms] ])
+
+    define ex_lockstep_unavailable := (~ (available_key four zero ring2 ring2))
+
+    conclude ex_lockstep_unavailable
+        let {
+            dead := (~ (Location.alive U));   # asserted in location.ath
+            miss := (!chain-> [ dead
+                                ==> (~ (available_key zero zero r2_t1 ring2))
+                                    [available_key_axioms] ]);
+            b1   := (!chain-> [ miss
+                                ==> (~ (available_key one zero ring2 ring2))
+                                    [available_key_axioms] ]);
+            wrap := (!chain-> [ b1
+                                ==> (~ (available_key one zero r2_t3 ring2))
+                                    [available_key_axioms] ]);
+            s1   := (!chain-> [ wrap
+                                ==> (~ (available_key two zero r2_t2 ring2))
+                                    [available_key_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (~ (available_key three zero r2_t1 ring2))
+                                    [available_key_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (~ (available_key four zero ring2 ring2))
+                        [available_key_axioms] ])
+
+
+    #-------------------------------------------------------------------
+    # Contrast: the walk the OLD clauses performed.
+    #
+    # `in_old` below is the previous definition of `in`, minus the unsound
+    # catch-all clause (that clause made the assumption base inconsistent, and
+    # under an inconsistent base every statement is provable, so it has to go
+    # before any contrast is meaningful). The remaining six clauses are the ones
+    # that actually fired, and they are pairwise disjoint, so `in_old` is a
+    # well-defined predicate. The two results below show it walking to the wrong
+    # bucket on the very same ring, which is what defects (i) and (ii) were.
+    #-------------------------------------------------------------------
+    declare in_old: (S) [N N (DLst (Lst S)) (DLst (Lst S)) S] -> Boolean
+    assert in_old_axioms := (fun [
+        (in_old zero zero (dempty htl) o_dlls htv) <==> false
+        (in_old zero zero (dlst lh lsts tail_dlls) o_dlls htv) <==> (Lst.in htv lsts)
+        (in_old zero (S rv) (dlst lh lsts tail_dlls) o_dlls htv) <==>
+            [
+                true
+                    when (Lst.in htv lsts)
+                (in_old zero rv tail_dlls o_dlls htv)
+                    when (~ Lst.in htv lsts)
+            ]
+        (in_old zero (S rv) (dempty htl) o_dlls htv) <==>
+            (in_old zero (S rv) o_dlls o_dlls htv)
+        (in_old (S bucket) rv (dlst lh lsts tail_dlls) o_dlls htv) <==>
+            (in_old bucket rv tail_dlls o_dlls htv)
+        (in_old (S bucket) rv (dempty htl) o_dlls htv) <==>
+            (in_old bucket rv o_dlls o_dlls htv)
+    ])
+
+    ### Defect (i), witnessed. `vA` is in bucket 0 of `ring0`, and query index 3
+    ### on a three-bucket ring is bucket 0. The new `in` finds it
+    ### (`ex_wrap_at_zero_zero` above). `in_old` does not: with the replication
+    ### counter already at zero it stopped at the `dempty` terminus instead of
+    ### wrapping, so a value living in a wrapped replica was reported absent.
+    define ex_old_misses_wrapped_replica := (~ (in_old three zero ring0 ring0 vA))
+
+    conclude ex_old_misses_wrapped_replica
+        let {
+            iff0 := (!chain [ (in_old zero zero r0_t3 ring0 vA)
+                              <==> false [in_old_axioms] ]);
+            stop := (!chain-> [ iff0
+                                ==> (~ (in_old zero zero r0_t3 ring0 vA))
+                                    [prop-taut] ]);
+            s1   := (!chain-> [ stop
+                                ==> (~ (in_old one zero r0_t2 ring0 vA))
+                                    [in_old_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (~ (in_old two zero r0_t1 ring0 vA))
+                                    [in_old_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (~ (in_old three zero ring0 ring0 vA)) [in_old_axioms] ])
+
+    ### Defect (ii), witnessed. Query index 4 on a three-bucket ring is bucket 1,
+    ### and `ex_index_four_is_not_zero` above proves the new `in` does not find
+    ### `vA` there. `in_old` decremented the bucket index on the wrap, so it
+    ### landed on bucket 0 instead, which is 4 modulo 4 rather than modulo 3, and
+    ### it reports a hit.
+    define ex_old_off_by_one_modulus := (in_old four zero ring0 ring0 vA)
+
+    conclude ex_old_off_by_one_modulus
+        let {
+            memb := (!chain-> [ (!reflex vA) ==> inBA [Lst.In.in-lst-axiom] ]);
+            hit  := (!chain-> [ memb
+                                ==> (in_old zero zero ring0 ring0 vA)
+                                    [in_old_axioms] ]);
+            # the old wrap consumed a bucket step that no real bucket paid for
+            wrap := (!chain-> [ hit
+                                ==> (in_old one zero r0_t3 ring0 vA)
+                                    [in_old_axioms] ]);
+            s1   := (!chain-> [ wrap
+                                ==> (in_old two zero r0_t2 ring0 vA)
+                                    [in_old_axioms] ]);
+            s2   := (!chain-> [ s1
+                                ==> (in_old three zero r0_t1 ring0 vA)
+                                    [in_old_axioms] ])
+        }
+        (!chain-> [ s2
+                    ==> (in_old four zero ring0 ring0 vA) [in_old_axioms] ])
+
+} # close module IndexExamples

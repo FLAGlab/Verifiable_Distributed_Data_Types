@@ -54,44 +54,14 @@ module Lst {
   #   pick-any l
   #     (!chain-> [(isEmpty l) ==> (l = empty) [isEmpty-axiom]])
 
-  assert empty-head := (forall h . ~ ((head empty) = h))
-  assert empty-tail := (forall t . ~ ((tail empty) = t))
-
-  define empty-nohead := 
-    (forall l . l = empty ==> forall h . (~ head l = h))
-
-  #cvarela: Exercise solution:
-  conclude empty-nohead
-    pick-any l
-      assume (l = empty)
-        pick-any h
-          let {-head-empty-h := (!uspec empty-head h)}
-          (!chain<- [    (~ head l = h)
-        <== -head-empty-h  [(l = empty)]])
-
-  define empty-notail := 
-    (forall l . l = empty ==> forall t . (~ tail l = t))
-
-  #cvarela: Exercise solution:
-  conclude empty-notail
-    pick-any l
-      assume (l = empty)
-        pick-any t
-          let {-tail-empty-t := (!uspec empty-tail t)}
-          (!chain<- [    (~ tail l = t)
-        <== -tail-empty-t  [(l = empty)]])
-
-  define hasHead->notEmpty :=
-    (forall l . (exists h . head l = h) ==> ~ isEmpty l)
-
-  #cvarela: Exercise solution:
-  conclude hasHead->notEmpty
-  pick-any l
-    assume e := (exists h . head l = h)
-      (!by-contradiction (~ isEmpty l)
-        assume (isEmpty l)
-    let {_ := (!chain-> [(isEmpty l) ==> (l = empty) [isEmpty-axiom]])}
-          (!absurd (!qn (!fire empty-nohead [l])) e))
+  # The axioms empty-head and empty-tail, and the theorems empty-nohead,
+  # empty-notail and hasHead->notEmpty derived from them, were removed.
+  # Functions in Athena are total, so (head empty) and (tail empty) denote
+  # some unspecified values. The axiom (forall h . ~ ((head empty) = h))
+  # instantiated with h := (head empty) yields false, which made the
+  # assumption base inconsistent (found with vprove-from and Vampire).
+  # The selector axioms lst-se-axioms say nothing about (head empty) or
+  # (tail empty), which is the intended meaning.
 
   define [v h t] := [?v:'S ?h:'S ?t:(Lst 'S)]
 

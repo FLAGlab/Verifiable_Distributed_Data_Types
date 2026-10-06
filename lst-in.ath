@@ -34,9 +34,14 @@ define [l] := [?l:(Lst 'S)]
 #      ((head l = v & v in l) |
 #       (v in tail l <==> v in l)))) 
 
+# The previous statement, (v in l <==> (v = head l) | (v in tail l)), is
+# false for l = empty when v = (head empty), because (head empty) is an
+# unspecified value. Its proof relied on the inconsistent axiom
+# Lst.empty-head (removed). The characterization below adds the condition
+# (~ isEmpty l), which makes it hold for every list.
 define functional-correctness :=
   (forall l v . (v in l <==>
-		 (v = head l) | (v in tail l)))
+		 (~ isEmpty l) & ((v = head l) | (v in tail l))))
 
 define empty-C :=
   (forall v . (v in empty <==> false))
@@ -58,36 +63,31 @@ pick-any l v
        ==> (exists t . (v in tail l & tail l = t))        [existence]
        ==> (exists t . tail l = t)                        [prop-taut]])
 
-define -in-tail-empty :=
-  (forall v . (~ v in tail empty))
+# The theorem -in-tail-empty, (forall v . (~ v in tail empty)), was
+# removed. (tail empty) is an unspecified list, so the statement does not
+# hold in every model, and its proof relied on the inconsistent axiom
+# Lst.empty-tail (removed).
 
-conclude -in-tail-empty
-pick-any v
-  (!by-contradiction (~ v in tail empty)
-  let{ -tet := (!chain<- [ (~ exists t . tail empty = t)
-		       <== (forall t . ~ tail empty = t) [qn]
-		       <== (empty = empty)               [empty-notail]])}
-  (!chain [(v in tail empty:(Lst 'S))
-       ==> (exists ?t:(Lst 'S) . tail empty = ?t)        [in-tail-exists]
-       ==> ((exists ?t . tail empty = ?t) & -tet)        [augment]
-       ==> false                                         [prop-taut]]))
-     
 datatype-cases functional-correctness {
 (l as empty) =>
   pick-any v
-  let{ -vhl := (!chain<- [(~ v = head l)
-		      <== (~ head l = v)               [sym]
-		      <== true                         [empty-head]]);
-       -vtl := (!chain<- [ (~ v in tail l) <== true  [-in-tail-empty]])}
-  (!chain [(v in l)
-      <==> false                                             [empty-C]
-      <==> (((v = head l) & -vhl) | (v in tail l) & -vtl)    [prop-taut]
-      <==> ((v = head l) | (v in tail l))                    [augment]])
-| (l as (lst h t)) =>				       
+    (!equiv
+      assume (v in l)
+        (!from-complements ((~ isEmpty l) & ((v = head l) | (v in tail l)))
+                           (v in l) (!uspec in-empty-axiom v))
+      assume rhs := ((~ isEmpty l) & ((v = head l) | (v in tail l)))
+        (!from-complements (v in l) isEmpty-emptyList (!left-and rhs)))
+| (l as (lst h t)) =>
   pick-any v
-    (!chain [(v in l)
-	<==> ((v = h) | (v in t))                      [in-lst-axiom]
-	<==> ((v = head l) | (v in tail l))            [lst-se-axioms]])}
+    let {ne := (!uspec* isEmpty-nonEmptyList [h t]);
+         c  := (!chain [(v in l)
+	           <==> ((v = h) | (v in t))                 [in-lst-axiom]
+	           <==> ((v = head l) | (v in tail l))       [lst-se-axioms]])}
+    (!equiv
+      assume (v in l)
+        (!both ne (!mp (!left-iff c) (v in l)))
+      assume rhs := ((~ isEmpty l) & ((v = head l) | (v in tail l)))
+        (!mp (!right-iff c) (!right-and rhs)))}
 
 
 define [v1 v2] := [?v1:'S ?v2:'S]

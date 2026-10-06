@@ -1,0 +1,188 @@
+### dlls_ncf_examples.ath
+###
+### Concrete, machine-checked sanity tests for `DL_L_S.no_consecutive_failures`
+### (defined in dlls.ath) and the `DL_L_S.available_key` window it is built from.
+###
+### Why this file exists.  A reader of the definition
+###
+###     (no_consecutive_failures rv (dempty htl) o_dlls) <==> true
+###     (no_consecutive_failures rv (dlst lh lsts tail_dlls) o_dlls) <==>
+###         ((available_key zero rv (dlst lh lsts tail_dlls) o_dlls) &
+###          (no_consecutive_failures rv tail_dlls o_dlls))
+###
+### will notice that `rv` is passed unchanged to the recursive call and may
+### conclude that the definition is malformed.  It is not, and the reason is
+### worth stating plainly:
+###
+###   * `rv` is not a countdown.  It is the *size* of the replica window,
+###     which is a fixed parameter of the whole predicate.  The countdown on
+###     `rv` happens one level down, inside `available_key`, which walks at
+###     most `rv + 1` buckets from the position it is given.
+###   * The outer recursion does not walk a window.  It walks the list of
+###     *starting positions*.  The conjunct for the suffix `(dlst lh lsts t)`
+###     is the window that opens at that suffix's head; the recursive call
+###     re-opens a fresh window of the same size at the next position.  So
+###     `no_consecutive_failures rv dlls dlls` is the conjunction, over every
+###     bucket index i, of "the window [i, i+rv] contains an alive location",
+###     and the windows wrap because `available_key` restarts at the head of
+###     `o_dlls` when the suffix runs out.
+###   * That conjunction is exactly "no run of `rv + 1` consecutive bucket
+###     locations is entirely dead", which is the fault hypothesis of the
+###     paper.  It is not enforced by the predicate; it is *assumed* by the
+###     theorems that take it as a hypothesis, and it is discharged by the
+###     deployment (a placement in which no `rv + 1` adjacent replicas share a
+###     failure domain).
+###
+### The three examples below check that reading against the axioms, on a
+### three-bucket ring, with `L` a location that is provably alive
+### (`Location.aliveLocal`) and `U` one that is provably dead:
+###
+###     ex_ring_rv1_holds     : L U L  with rv = 1  ==>  holds
+###     ex_badring_rv1_fails  : U U L  with rv = 1  ==>  fails (a 2-run of
+###                                                     failures beats a
+###                                                     2-bucket window)
+###     ex_badring_rv2_holds  : U U L  with rv = 2  ==>  holds (a 3-bucket
+###                                                     window absorbs it)
+###
+### Together they show the predicate is satisfiable (so the hypothesis of
+### `DHTable.dht_replication_correctness` is not vacuous), refutable (so it is
+### not trivially true), and monotone in `rv` in the direction the paper
+### claims: raising the replication value tolerates longer failure runs.
+###
+### Run with:  athena-run dlls_ncf_examples
+
+load "dlls"
+
+module NCFExamples {
+    open DL_L_S
+
+    # The two clause groups we reason with, named per clause.
+    # available_key: a1 = both lists empty, a2 = window size 1 (rv = zero),
+    #                a3a/a3b = window size rv+2 under alive / dead head,
+    #                a4 = step past a non-home bucket, a5 = wrap-around.
+    define [a1 a2 a3a a3b a4 a5] := available_key_axioms
+    # no_consecutive_failures: nc1 = no positions left, nc2 = one position.
+    define [nc1 nc2] := no_consecutive_failures_axioms
+
+    define L      := Location.localhost         # provably alive
+    define U      := Location.unreachableHost   # provably dead
+    define E      := (empty:(Lst Location))     # an empty bucket
+    define aliveL := Location.aliveLocal
+    define deadU  := (~ Location.alive U)
+
+    define one := (S zero)
+    define two := (S one)
+
+    #-------------------------------------------------------------------
+    # Example 1.  ring = L U L, rv = 1  (2-bucket windows).
+    # Windows: {L,U} {U,L} {L,L-by-wrap} — each contains an alive bucket.
+    #-------------------------------------------------------------------
+    define r2   := (dlst L E (dempty L))     # suffix starting at bucket 2
+    define r1   := (dlst U E r2)             # suffix starting at bucket 1
+    define ring := (dlst L E r1)             # the whole ring
+
+    define ex_ring_rv1_holds := (no_consecutive_failures one ring ring)
+
+    conclude ex_ring_rv1_holds
+        let {
+            # Window at bucket 2: head L is alive, so the window is available.
+            i2 := (!mp (!uspec* a3a [L zero E (dempty L) ring]) aliveL);
+            w2 := (!chain-> [ i2 ==> (available_key zero one r2 ring) [prop-taut] ]);
+            # Window at bucket 1: head U is dead, so the window falls through to
+            # bucket 2, whose head L is alive.  This is the step that shows the
+            # countdown on rv lives inside available_key, not in the outer
+            # recursion: (S zero) becomes zero here.
+            step1 := (!mp (!uspec* a3b [U zero E r2 ring]) deadU);
+            head2 := (!uspec* a2 [L E (dempty L) ring]);
+            p1    := (!both step1 (!both head2 aliveL));
+            w1    := (!chain-> [ p1 ==> (available_key zero one r1 ring) [prop-taut] ]);
+            # Window at bucket 0: head L is alive.
+            i0 := (!mp (!uspec* a3a [L zero E r1 ring]) aliveL);
+            w0 := (!chain-> [ i0 ==> (available_key zero one ring ring) [prop-taut] ]);
+            # No starting positions left once the ring has been walked out.
+            e0   := (!uspec* nc1 [one L ring]);
+            base := (!chain-> [ e0 ==> (no_consecutive_failures one (dempty L) ring)
+                                   [prop-taut] ]);
+            # Fold the three windows back up through the outer recursion.
+            u2   := (!uspec* nc2 [L one E (dempty L) ring]);
+            q2   := (!both u2 (!both w2 base));
+            ncf2 := (!chain-> [ q2 ==> (no_consecutive_failures one r2 ring) [prop-taut] ]);
+            u1   := (!uspec* nc2 [U one E r2 ring]);
+            q1   := (!both u1 (!both w1 ncf2));
+            ncf1 := (!chain-> [ q1 ==> (no_consecutive_failures one r1 ring) [prop-taut] ]);
+            u0   := (!uspec* nc2 [L one E r1 ring]);
+            q0   := (!both u0 (!both w0 ncf1))
+        }
+        (!chain-> [ q0 ==> (no_consecutive_failures one ring ring) [prop-taut] ])
+
+    #-------------------------------------------------------------------
+    # Example 2.  badring = U U L, rv = 1.  The window at bucket 0 is {U,U},
+    # entirely dead, so the predicate must FAIL: a run of rv+1 = 2 consecutive
+    # failures is exactly what a replication value of 1 cannot absorb.
+    #-------------------------------------------------------------------
+    define b2      := (dlst L E (dempty L))
+    define b1      := (dlst U E b2)
+    define badring := (dlst U E b1)
+
+    define ex_badring_rv1_fails := (~ (no_consecutive_failures one badring badring))
+
+    conclude ex_badring_rv1_fails
+        let {
+            # Window at bucket 0: U dead, so fall through to bucket 1 — also U.
+            step0  := (!mp (!uspec* a3b [U zero E b1 badring]) deadU);
+            head1  := (!uspec* a2 [U E b2 badring]);
+            unfold := (!uspec* nc2 [U one E b1 badring]);
+            prem   := (!both deadU (!both step0 (!both head1 unfold)))
+        }
+        (!chain-> [ prem
+                    ==> (~ (no_consecutive_failures one badring badring)) [prop-taut] ])
+
+    #-------------------------------------------------------------------
+    # Example 3.  Same badring = U U L, but rv = 2 (3-bucket windows).
+    # Windows: {U,U,L} {U,L,U-by-wrap} {L,U,U-by-wrap} — each reaches the one
+    # alive bucket, so the predicate HOLDS.  Raising the replication value
+    # tolerates the failure run that beat rv = 1.
+    #-------------------------------------------------------------------
+    define ex_badring_rv2_holds := (no_consecutive_failures two badring badring)
+
+    conclude ex_badring_rv2_holds
+        let {
+            # Window at bucket 2: head L alive.
+            j2 := (!mp (!uspec* a3a [L one E (dempty L) badring]) aliveL);
+            v2 := (!chain-> [ j2 ==> (available_key zero two b2 badring) [prop-taut] ]);
+            # Window at bucket 1: U dead, fall through to bucket 2 (alive L).
+            j1 := (!mp (!uspec* a3a [L zero E (dempty L) badring]) aliveL);
+            v1_next := (!chain-> [ j1 ==> (available_key zero one b2 badring)
+                                      [prop-taut] ]);
+            s1 := (!mp (!uspec* a3b [U one E b2 badring]) deadU);
+            p1 := (!both s1 v1_next);
+            v1 := (!chain-> [ p1 ==> (available_key zero two b1 badring) [prop-taut] ]);
+            # Window at bucket 0: U dead, fall through to bucket 1 (U dead too),
+            # then on to bucket 2 (alive L).  Three buckets, two failures absorbed.
+            # Note the two-step countdown on rv inside available_key:
+            #   rv = 2 at bucket 0  ->  rv = 1 at bucket 1  ->  rv = 0 at bucket 2.
+            h0 := (!uspec* a2 [L E (dempty L) badring]);
+            t1 := (!mp (!uspec* a3b [U zero E b2 badring]) deadU);
+            pk := (!both t1 (!both h0 aliveL));
+            k1 := (!chain-> [ pk ==> (available_key zero one b1 badring) [prop-taut] ]);
+            s0 := (!mp (!uspec* a3b [U one E b1 badring]) deadU);
+            p0 := (!both s0 k1);
+            v0 := (!chain-> [ p0 ==> (available_key zero two badring badring)
+                                 [prop-taut] ]);
+            e0   := (!uspec* nc1 [two L badring]);
+            base := (!chain-> [ e0 ==> (no_consecutive_failures two (dempty L) badring)
+                                   [prop-taut] ]);
+            u2   := (!uspec* nc2 [L two E (dempty L) badring]);
+            q2   := (!both u2 (!both v2 base));
+            ncf2 := (!chain-> [ q2 ==> (no_consecutive_failures two b2 badring)
+                                   [prop-taut] ]);
+            u1   := (!uspec* nc2 [U two E b2 badring]);
+            q1   := (!both u1 (!both v1 ncf2));
+            ncf1 := (!chain-> [ q1 ==> (no_consecutive_failures two b1 badring)
+                                   [prop-taut] ]);
+            u0   := (!uspec* nc2 [U two E b1 badring]);
+            q0   := (!both u0 (!both v0 ncf1))
+        }
+        (!chain-> [ q0 ==> (no_consecutive_failures two badring badring) [prop-taut] ])
+
+} # close module NCFExamples
