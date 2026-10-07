@@ -1,0 +1,8 @@
+
+### This file is not loaded by sensor_app.ath and adds nothing to the
+### development. It needs Vampire, which the rest of the artifact does not.
+
+load "sensor_app"
+
+(print "\nAssumption base size: " (length (ab)) "\n")
+(!vprove-from false (ab) [['max-time 300]])
