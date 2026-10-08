@@ -110,14 +110,16 @@ module DHTable {
 
 	### available (constructor-recursive on DHTable)
 	### Purpose:
-	###     A distributed hash table is "available" when every value it actually
-	###     stores can be queried successfully — i.e. the bucket window for each
-	###     inserted value is alive. Stated constructor-recursively over the
-	###     DHTable shape:
+	###     A distributed hash table is "available" when its table location is
+	###     alive and every value it actually stores can be queried successfully,
+	###     i.e. the bucket window for each inserted value is alive. Stated
+	###     constructor-recursively over the DHTable shape:
 	###
-	###       * an empty DHT has no stored values, so it is trivially available;
+	###       * an empty DHT is available iff its table location htl is alive
+	###         (the table location is critical to the availability of the DHT);
 	###       * (dht_insert dht v) is available iff dht is and the bucket window
-	###         where v was just placed is alive.
+	###         where v was just placed is alive. By the recursion, the table
+	###         location of an available DHT is alive (available_alive below).
 	###
 	###     This replaces the previous formulation
 	###         (available_aux (dhtr hf rv htl dlls)) <==>
@@ -126,7 +128,7 @@ module DHTable {
 	###     (e.g. N) that was effectively "every bucket is rv-safe" and
 	###     strictly stronger than what query_functional_correctness needs.
 	###     The new form makes both branches of the QFC induction
-	###     carry useful information: the empty branch is trivially available,
+	###     carry useful information: the empty branch gives the table location,
 	###     the insert branch hands us `available_key` on the freshly inserted
 	###     bucket directly. The intermediate predicate `available_aux` (which
 	###     lifted the bad characterization to DHTRep) is dropped — every use
@@ -136,12 +138,107 @@ module DHTable {
 	###     Boolean.
 	declare available : (S) [(DHTable S)] -> Boolean
 	assert available_axioms := (fun [
-		(available (dht_empty ll hf rv htl)) <==> true
+		(available (dht_empty ll hf rv htl)) <==> (Location.alive htl)
 		(available (dht_insert dht v)) <==> [
 			((available dht) & (available_key (hf at v) rv dlls dlls))
 				when ((rep dht) = (dhtr hf rv htl dlls))
 		]
 	])
+
+	### rep_end (PROVEN, by induction on dht)
+	### The bucket list of a DHT ends at its table location: initDPrList puts
+	### htl at the `dempty` node and insertDPrList keeps it there.
+	define rep_end :=
+		(forall dht hf rv htl dlls .
+			((rep dht) = (dhtr hf rv htl dlls)) ==> ((DL_L_S.dlls_end dlls) = htl))
+	by-induction rep_end {
+	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
+		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := ((rep dht) = (dhtr hf rv htl dlls))
+			let {
+				eq := (!chain [ (dhtr hf rv htl dlls)
+				              = (rep dht)                                       [hyp]
+				              = (dhtr hf1 rv1 htl1 (initDPrList hf1 htl1 ll1))  [rep_axioms] ]);
+				fs := (!chain-> [ eq ==> ((hf = hf1) & (rv = rv1) & (htl = htl1) &
+				                          (dlls = (initDPrList hf1 htl1 ll1)))  [dhtr_no_conf] ]);
+				htl_eq  := (!sym (!chain-> [fs ==> (htl = htl1)                         [prop-taut]]));
+				dlls_eq := (!chain-> [fs ==> (dlls = (initDPrList hf1 htl1 ll1))       [prop-taut]])
+			}
+			(!chain [ (DL_L_S.dlls_end dlls)
+			        = (DL_L_S.dlls_end (initDPrList hf1 htl1 ll1))  [dlls_eq]
+			        = htl1                                           [DL_L_S.initDPrList_end]
+			        = htl                                            [htl_eq] ])
+	| (dht as (dht_insert dht0 v0)) =>
+		let { IH := (forall hf rv htl dlls .
+		                ((rep dht0) = (dhtr hf rv htl dlls)) ==> ((DL_L_S.dlls_end dlls) = htl));
+		      ex := (!uspec rep_e dht0) }
+		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := ((rep dht) = (dhtr hf rv htl dlls))
+			pick-witnesses hf0 rv0 htl0 dlls0 for ex rep0
+			let {
+				eq := (!chain [ (dhtr hf rv htl dlls)
+				              = (rep dht)                                                     [hyp]
+				              = (dhtr hf0 rv0 htl0 (insertDPrList (hf0 at v0) rv0 v0 dlls0))  [rep_axioms] ]);
+				fs := (!chain-> [ eq ==> ((hf = hf0) & (rv = rv0) & (htl = htl0) &
+				                          (dlls = (insertDPrList (hf0 at v0) rv0 v0 dlls0)))  [dhtr_no_conf] ]);
+				htl_eq  := (!sym (!chain-> [fs ==> (htl = htl0)                                     [prop-taut]]));
+				dlls_eq := (!chain-> [fs ==> (dlls = (insertDPrList (hf0 at v0) rv0 v0 dlls0))     [prop-taut]]);
+				ih0 := (!mp (!uspec* IH [hf0 rv0 htl0 dlls0]) rep0)
+			}
+			(!chain [ (DL_L_S.dlls_end dlls)
+			        = (DL_L_S.dlls_end (insertDPrList (hf0 at v0) rv0 v0 dlls0))  [dlls_eq]
+			        = (DL_L_S.dlls_end dlls0)                                     [DL_L_S.insertDPrList_preserves_end]
+			        = htl0                                                        [ih0]
+			        = htl                                                         [htl_eq] ])
+	}
+
+	### available_alive (PROVEN, by induction on dht)
+	### The table location of an available DHT is alive. The empty case is the
+	### first available axiom; the insert case passes through `available dht0`.
+	define available_alive :=
+		(forall dht hf rv htl dlls .
+			(((rep dht) = (dhtr hf rv htl dlls)) & (available dht)) ==> (Location.alive htl))
+	by-induction available_alive {
+	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
+		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) & (available dht))
+			let {
+				r  := (!left-and hyp);
+				av := (!right-and hyp);
+				a1 := (!chain-> [ av ==> (Location.alive htl1)        [available_axioms] ]);
+				eq := (!chain [ (dhtr hf rv htl dlls)
+				              = (rep dht)                                       [r]
+				              = (dhtr hf1 rv1 htl1 (initDPrList hf1 htl1 ll1))  [rep_axioms] ]);
+				fs := (!chain-> [ eq ==> ((hf = hf1) & (rv = rv1) & (htl = htl1) &
+				                          (dlls = (initDPrList hf1 htl1 ll1)))  [dhtr_no_conf] ]);
+				htl_eq := (!sym (!chain-> [fs ==> (htl = htl1) [prop-taut]]))
+			}
+			(!chain-> [ a1 ==> (Location.alive htl) [htl_eq] ])
+	| (dht as (dht_insert dht0 v0)) =>
+		let { IH := (forall hf rv htl dlls .
+		                (((rep dht0) = (dhtr hf rv htl dlls)) & (available dht0)) ==> (Location.alive htl));
+		      ex := (!uspec rep_e dht0) }
+		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) & (available dht))
+			pick-witnesses hf0 rv0 htl0 dlls0 for ex rep0
+			let {
+				r  := (!left-and hyp);
+				av := (!right-and hyp);
+				av_iff := (!chain-> [ rep0
+				            ==> ((available (dht_insert dht0 v0)) <==>
+				                 ((available dht0) & (available_key (hf0 at v0) rv0 dlls0 dlls0)))
+				                                                                  [available_axioms] ]);
+				av0 := (!chain-> [ (!both av av_iff) ==> (available dht0) [prop-taut] ]);
+				a0  := (!mp (!uspec* IH [hf0 rv0 htl0 dlls0]) (!both rep0 av0));
+				eq := (!chain [ (dhtr hf rv htl dlls)
+				              = (rep dht)                                                     [r]
+				              = (dhtr hf0 rv0 htl0 (insertDPrList (hf0 at v0) rv0 v0 dlls0))  [rep_axioms] ]);
+				fs := (!chain-> [ eq ==> ((hf = hf0) & (rv = rv0) & (htl = htl0) &
+				                          (dlls = (insertDPrList (hf0 at v0) rv0 v0 dlls0)))  [dhtr_no_conf] ]);
+				htl_eq := (!sym (!chain-> [fs ==> (htl = htl0) [prop-taut]]))
+			}
+			(!chain-> [ a0 ==> (Location.alive htl) [htl_eq] ])
+	}
 
 	### query / query_aux
 	### Purpose:
@@ -152,72 +249,51 @@ module DHTable {
 	###
 	### Returns:
 	###     Option Boolean:
-	###         SOME b     when the key v is located in one of the
-	###                    available buckets or replicas. The boolean
-	###                    b indicates whether v is present.
-	###         NONE       when the lookup cannot be completed because
-	###                    the relevant bucket and its replicas are not
-	###                    available.
+	###         SOME b     when the table location is alive and the key v is
+	###                    located in one of the available buckets or
+	###                    replicas. The boolean b indicates whether v is
+	###                    present.
+	###         NONE       when the table location is not alive, or when the
+	###                    relevant bucket and its replicas are not available.
 	###
+	### query is defined by cases on the DHTable constructor. An empty table
+	### stores nothing, so it does not consult its buckets: it answers
+	### (SOME false) for every key when its table location is alive, and NONE
+	### otherwise. A non-empty table delegates to query_aux on its
+	### representation. There is deliberately no axiom equating query with
+	### query_aux on the empty table, since the two differ there when the window
+	### of a key is not alive.
 	declare query_aux : (S) [(DHTRep S) S] -> (Option Boolean)
 	assert query_aux_axioms :=
 		(fun [(query_aux (dhtr hf rv htl dlls) v) = [
-			(SOME (in (hf at v) rv dlls dlls v) )
-						when (available_key (hf at v) rv dlls dlls)
-			NONE 
-						when (~ available_key (hf at v) rv dlls dlls)
+			NONE
+						when (~ Location.alive htl)
+			(SOME (in (hf at v) rv dlls dlls v))
+						when ((Location.alive htl) & (available_key (hf at v) rv dlls dlls))
+			NONE
+						when ((Location.alive htl) & (~ available_key (hf at v) rv dlls dlls))
 			]]
 		)
 	declare query : (S) [(DHTable S) S] -> (Option Boolean)
-	assert* query_axiom := ((query dht v) = (query_aux (rep dht) v))
+	assert query_axioms := (fun [
+		(query (dht_empty ll hf rv htl) v) = [
+			NONE         when (~ Location.alive htl)
+			(SOME false) when (Location.alive htl)
+		]
+		(query (dht_insert dht v0) v) = (query_aux (rep (dht_insert dht v0)) v)
+	])
 
-	
-	# After the `available` change above, `available (dht_empty ll hf rv htl) <==> true`, so
-	# the old `available` antecedent no longer constrains bucket aliveness on
-	# its own. The theorem is restated with the relevant `available_key`
-	# hypothesis spelled out directly. Under the old `available_aux_axiom` the
-	# two forms were equivalent (the old axiom would have let you derive this
-	# hypothesis from `available`); under the new constructor-recursive
-	# `available`, the direct form is the provable one.
+	# An empty DHT whose table location is alive answers (SOME false) for every
+	# key (PROVEN). It follows from the first query axiom alone.
 	define query_fc_empty :=
 	(forall ll hf rv htl v .
-		((available_key (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll)) ==>
-		  ((query (dht_empty ll hf rv htl) v) = (SOME false))))
-
-	# The old `force` step bridging
-	#   (in … (…) v) <==> false      (what in_init_false gives us)
-	# to
-	#   (in … (…) v) =  false        (what `query = (SOME false)` needs under SOME)
-	# is now done by chaining iff → (~ p) → (p = false) via `false-bool` from bool.ath.
+		((Location.alive htl) ==> ((query (dht_empty ll hf rv htl) v) = (SOME false))))
+	conclude query_fc_empty
 	pick-any ll hf rv htl v
-		assume availableKey :=
-			(available_key (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll))
-		let {
-			# in_init_false instantiated at our query's bucket and rep witnesses:
-			#   (in (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll) v) <==> false
-			p_iff_false := (!uspec* in_init_false
-									[(hf at v) rv ll hf v htl]);
-			# Iff with `false` is propositionally equivalent to negation.
-			not_p := (!chain-> [
-						p_iff_false
-						==> (~ (in (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll) v))
-							[prop-taut]
-					]);
-			# bool.ath's false-bool turns (~ p) into the term equality (p = false),
-			# closing the gap that previously forced `force`.
-			p_eq_false := (!false-bool not_p);
-			query_some :=
-				(!chain [
-					(query (dht_empty ll hf rv htl) v)
-					= (query_aux (rep (dht_empty ll hf rv htl)) v) [query_axiom]
-					= (query_aux (dhtr hf rv htl (initDPrList hf htl ll)) v) [rep_axioms]
-					= (SOME (in (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll) v)) [query_aux_axioms]
-				])
-			}
+		assume alv := (Location.alive htl)
 			(!chain [
 				(query (dht_empty ll hf rv htl) v)
-				= (SOME (in (hf at v) rv (initDPrList hf htl ll) (initDPrList hf htl ll) v)) [query_some]
-				= (SOME false)                                                                [p_eq_false]
+				= (SOME false)                                   [query_axioms]
 			])
 	
 	define [b0 b1] := [?b0:Boolean ?b1:Boolean]
@@ -276,33 +352,52 @@ module DHTable {
 
 
 	declare values_aux : (S) [(DHTRep S)]  -> (Option (Set.Set S))
-	assert* values_aux_axioms := 
-			((values_aux (dhtr hf rv htl dlls)) = (DL_L_S.values dlls Set.null true))
+	assert* values_aux_axioms :=
+			((values_aux (dhtr hf rv htl dlls)) = (DL_L_S.values dlls))
 	declare values : 	 (S) [(DHTable S)] -> (Option (Set.Set S))
 	assert* values_axiom := ((values dht) = (values_aux (rep dht)))
 
-	# Empty-DHT case (PROVEN): an empty DHT is `available`, and `values` on it
-	# returns SOME Set.null (never NONE), because the public boundary always
-	# uses the `true` flag and every freshly-initialized bucket contributes
-	# the empty set (DL_L_S.values_init_some).
+	# Empty-DHT case (PROVEN): an empty DHT whose table location is alive
+	# returns (SOME Set.null). Its bucket list ends at htl and every bucket is
+	# empty (DL_L_S.values_init).
 	define values_fc_empty :=
-		(forall ll hf rv htl . (values (dht_empty ll hf rv htl)) = (SOME Set.null))
+		(forall ll hf rv htl .
+			(Location.alive htl) ==> ((values (dht_empty ll hf rv htl)) = (SOME Set.null)))
 	conclude values_fc_empty
 		pick-any ll:(Lst Location) hf:(fn 'S N) rv:N htl:Location
-			let { init_some := (!uspec* DL_L_S.values_init_some
-									[ll hf htl (Set.null:(Set.Set 'S))]) }
+			assume alv := (Location.alive htl)
+			let { init := (!mp (!uspec* DL_L_S.values_init [ll hf htl]) alv) }
 			(!chain [ (values (dht_empty ll hf rv htl))
 					= (values_aux (rep (dht_empty ll hf rv htl)))              [values_axiom]
 					= (values_aux (dhtr hf rv htl (initDPrList hf htl ll)))    [rep_axioms]
-					= (DL_L_S.values (initDPrList hf htl ll) Set.null true)    [values_aux_axioms]
-					= (SOME Set.null)                                          [init_some] ])
+					= (DL_L_S.values (initDPrList hf htl ll))                  [values_aux_axioms]
+					= (SOME Set.null)                                          [init] ])
+
+	# Empty-DHT case, unavailable (PROVEN): when the table location is not
+	# alive, values returns NONE.
+	define values_empty_unavailable :=
+		(forall ll hf rv htl .
+			(~ Location.alive htl) ==> ((values (dht_empty ll hf rv htl)) = NONE))
+	conclude values_empty_unavailable
+		pick-any ll:(Lst Location) hf:(fn 'S N) rv:N htl:Location
+			assume nalv := (~ Location.alive htl)
+			let { end_eq := (!uspec* DL_L_S.initDPrList_end [ll hf htl]);
+			      nd     := (!chain-> [ nalv ==> (~ Location.alive (DL_L_S.dlls_end (initDPrList hf htl ll)))
+			                                                                      [end_eq] ]);
+			      none   := (!mp (!uspec DL_L_S.values_end_dead (initDPrList hf htl ll)) nd) }
+			(!chain [ (values (dht_empty ll hf rv htl))
+					= (values_aux (rep (dht_empty ll hf rv htl)))              [values_axiom]
+					= (values_aux (dhtr hf rv htl (initDPrList hf htl ll)))    [rep_axioms]
+					= (DL_L_S.values (initDPrList hf htl ll))                  [values_aux_axioms]
+					= NONE                                                     [none] ])
 
 
 	# Insert-DHT case. The value set after inserting v0 is exactly Set.insert v0
-	# of the value set before. Reduces, through rep/values_aux, to the single
-	# remaining list-level obligation DL_L_S.values_after_insert; the pre-insert
-	# value set is furnished by the PROVEN DL_L_S.values_true_some, and the live
-	# window by `available` on the freshly inserted bucket.
+	# of the value set before (PROVEN). Reduces, through rep/values_aux, to the
+	# proven list-level lemma DL_L_S.values_after_insert. The pre-insert
+	# value set exists because the table location of the available dht0 is
+	# alive (available_alive, rep_end, DL_L_S.values_end_alive), and the live
+	# window comes from `available` on the freshly inserted bucket.
 	define values_fc_insert :=
 		(forall dht0 v0 . (available (dht_insert dht0 v0)) ==>
 			exists s s0 . ((values (dht_insert dht0 v0)) = (SOME s) &
@@ -314,24 +409,29 @@ module DHTable {
 				let { rep0 := (!uspec rep_e dht0) }
 				pick-witnesses hf rv htl dlls for rep0 rep0_def
 				let {
-					tot := (!uspec* DL_L_S.values_true_some
-									[dlls (Set.null:(Set.Set 'S))]) }
+					av_iff := (!chain->
+						[ rep0_def
+						==> ((available (dht_insert dht0 v0)) <==>
+						     ((available dht0) & (available_key (hf at v0) rv dlls dlls)))
+								[available_axioms] ]);
+					avail0 := (!chain->
+						[ (!both avail av_iff) ==> (available dht0) [prop-taut] ]);
+					availkey := (!chain->
+						[ (!both avail av_iff)
+						==> (available_key (hf at v0) rv dlls dlls) [prop-taut] ]);
+					alv := (!mp (!uspec* available_alive [dht0 hf rv htl dlls])
+					            (!both rep0_def avail0));
+					end_eq := (!sym (!mp (!uspec* rep_end [dht0 hf rv htl dlls]) rep0_def));
+					alv_end := (!chain-> [ alv ==> (Location.alive (DL_L_S.dlls_end dlls)) [end_eq] ]);
+					tot := (!mp (!uspec DL_L_S.values_end_alive dlls) alv_end) }
 				pick-witness s0 for tot tot_def
 				let {
 					vals0_some := (!chain
 						[ (values dht0)
 						= (values_aux (rep dht0))              [values_axiom]
 						= (values_aux (dhtr hf rv htl dlls))   [rep0_def]
-						= (DL_L_S.values dlls Set.null true)   [values_aux_axioms]
+						= (DL_L_S.values dlls)                 [values_aux_axioms]
 						= (SOME s0)                            [tot_def] ]);
-					av_iff := (!chain->
-						[ rep0_def
-						==> ((available (dht_insert dht0 v0)) <==>
-						     ((available dht0) & (available_key (hf at v0) rv dlls dlls)))
-								[available_axioms] ]);
-					availkey := (!chain->
-						[ (!both avail av_iff)
-						==> (available_key (hf at v0) rv dlls dlls) [prop-taut] ]);
 					avf := (!uspec* DL_L_S.values_after_insert
 									[(hf at v0) rv v0 dlls s0]);
 					after := (!mp avf (!both availkey tot_def));
@@ -339,7 +439,7 @@ module DHTable {
 						[ (values (dht_insert dht0 v0))
 						= (values_aux (rep (dht_insert dht0 v0)))                            [values_axiom]
 						= (values_aux (dhtr hf rv htl (insertDPrList (hf at v0) rv v0 dlls))) [rep_axioms]
-						= (DL_L_S.values (insertDPrList (hf at v0) rv v0 dlls) Set.null true) [values_aux_axioms]
+						= (DL_L_S.values (insertDPrList (hf at v0) rv v0 dlls))              [values_aux_axioms]
 						= (SOME (Set.insert v0 s0))                                          [after] ]);
 					conj := (!both vals_ins
 								(!both vals0_some (!reflex (Set.insert v0 s0)))) }
@@ -350,8 +450,8 @@ module DHTable {
 
 
 	# values_functional_correctness is now a real datatype-cases proof (was a bare
-	# `assert`). Its empty branch is fully proven (values_fc_empty); its insert
-	# branch is proven modulo the single list-level lemma DL_L_S.values_after_insert.
+	# `assert`). Both branches are proven (values_fc_empty, values_fc_insert), and
+	# it depends on no asserted sentence.
 	define values_functional_correctness :=
 		(forall dht . (available dht ==>
 				(exists ll hf rv htl .
@@ -366,7 +466,8 @@ module DHTable {
 		(dht as (dht_empty ll1 hf1 rv1 htl1)) =>
 			assume avail := (available (dht_empty ll1 hf1 rv1 htl1))
 				let {
-					emp := (!instance values_fc_empty [ll1 hf1 rv1 htl1]);
+					alv := (!chain-> [ avail ==> (Location.alive htl1) [available_axioms] ]);
+					emp := (!mp (!instance values_fc_empty [ll1 hf1 rv1 htl1]) alv);
 					left := (!chain->
 						[ emp
 						==> (((dht_empty ll1 hf1 rv1 htl1) = (dht_empty ll1 hf1 rv1 htl1)) &
@@ -419,15 +520,16 @@ module DHTable {
 	assert dht_functional_correctness
 
 
-	### dht_replication_correctness  (proven by induction on dht; rests on the
-	### asserted auxiliaries no_consecutive_failures_insert_inv and
-	### no_consecutive_failures_implies_key_available — formal statement of the
+	### dht_replication_correctness  (proven by induction on dht, through the
+	### proven auxiliaries no_consecutive_failures_insert_inv and
+	### no_consecutive_failures_implies_key_available; formal statement of the
 	### abstract's replication claim)
 	###
-	### Paper claim (abstract): "as long as no `r` consecutive bucket
-	### locations fail — with a replication value `r` — all the DHT
-	### key-value pairs remain available." Concretely: if the bucket
-	### list `dlls` underlying the DHT satisfies
+	### Paper claim (abstract): as long as the table location is alive and
+	### no `r` consecutive bucket locations fail, with a replication value
+	### `r`, all the DHT key-value pairs remain available. Concretely: if the
+	### table location `htl` is alive and the bucket list `dlls` underlying
+	### the DHT satisfies
 	###   `no_consecutive_failures rv dlls dlls`
 	### then `available dht` holds, so every inserted key passes the
 	### per-key `available_key` precondition demanded by
@@ -442,9 +544,10 @@ module DHTable {
 	### first clause), so a `dht_insert` on top would be unavailable
 	### even though the replication invariant trivially holds.
 	###
-	### Proof obligation (deferred):
-	###   * Empty branch (dht = dht_empty ll hf rv htl): `available`
-	###     evaluates to `true` directly via the first available_axiom.
+	### Proof:
+	###   * Empty branch (dht = dht_empty ll hf rv htl): `available` is
+	###     `(Location.alive htl)` by the first available_axiom, which is a
+	###     hypothesis (after identifying the two dhtr forms).
 	###   * Insert branch (dht = dht_insert dht0 v0): unfold `available`
 	###     into the conjunction
 	###         (available dht0) & (available_key (hf at v0) rv dlls dlls).
@@ -560,9 +663,12 @@ module DHTable {
 	### `htl`, and `(dempty htl2)` for any other htl2 satisfies it while making
 	### `available_key` false. Spelling out the `dlst` shape is what was meant:
 	### the \ac{DHT} has at least one bucket.
+	### The table location is critical to availability, so the theorem also
+	### assumes that `htl` is alive.
 	define dht_replication_correctness :=
 		(forall dht hf rv htl dlls .
 			(((rep dht) = (dhtr hf rv htl dlls)) &
+			 (Location.alive htl) &
 			 (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 			 (no_consecutive_failures rv dlls dlls))
 			==>
@@ -572,28 +678,43 @@ module DHTable {
 	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
 		pick-any hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
 		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
+		               (Location.alive htl) &
 		               (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 		               (no_consecutive_failures rv dlls dlls))
+			let {
+				r   := (!chain-> [hyp ==> ((rep dht) = (dhtr hf rv htl dlls)) [prop-taut]]);
+				alv := (!chain-> [hyp ==> (Location.alive htl)                 [prop-taut]]);
+				eq  := (!chain [ (dhtr hf rv htl dlls)
+				               = (rep dht)                                       [r]
+				               = (dhtr hf1 rv1 htl1 (initDPrList hf1 htl1 ll1))  [rep_axioms] ]);
+				fs  := (!chain-> [ eq ==> ((hf = hf1) & (rv = rv1) & (htl = htl1) &
+				                           (dlls = (initDPrList hf1 htl1 ll1)))  [dhtr_no_conf] ]);
+				htl_eq := (!chain-> [fs ==> (htl = htl1) [prop-taut]])
+			}
 			(!chain-> [
-				true
-				==> (available (dht_empty ll1 hf1 rv1 htl1)) [available_axioms]
+				alv
+				==> (Location.alive htl1)                     [htl_eq]
+				==> (available (dht_empty ll1 hf1 rv1 htl1))  [available_axioms]
 			])
 	| (dht as (dht_insert dht0 v0)) =>
 		let { IH := (forall hf rv htl dlls .
 		                (((rep dht0) = (dhtr hf rv htl dlls)) &
+		                 (Location.alive htl) &
 		                 (exists lh lsts tl . dlls = (dlst lh lsts tl)) &
 		                 (no_consecutive_failures rv dlls dlls))
 		                ==>
 		                (available dht0)) }
 		pick-any hf:(fn 'S N) rv:N htl:Location dlls_after:(DLst (Lst 'S))
 		assume hyp := (((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls_after)) &
+		               (Location.alive htl) &
 		               (exists lh lsts tl . dlls_after = (dlst lh lsts tl)) &
 		               (no_consecutive_failures rv dlls_after dlls_after))
 			let {
-				# Extract the three conjuncts of hyp.
+				# Extract the four conjuncts of hyp.
 				rep_eq_after  := (!chain-> [
 					hyp ==> ((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls_after))
 						[prop-taut]]);
+				alive_after := (!chain-> [hyp ==> (Location.alive htl) [prop-taut]]);
 				nonempty_after := (!chain-> [
 					hyp ==> (exists lh lsts tl . dlls_after = (dlst lh lsts tl))
 						[prop-taut]]);
@@ -658,8 +779,10 @@ module DHTable {
 					(!uspec* insertDPrList_preserves_nonempty
 						[(hf0 at v0) rv0 v0 dlls0])
 					nonempty_insert_form);
+				# The table location is the same before and after the insertion.
+				alive_before := (!chain-> [alive_after ==> (Location.alive htl0) [htl_eq]]);
 				# Apply IH at the witness names.
-				ih_premise := (!both rep0_eq (!both nonempty_before ncf_before));
+				ih_premise := (!both rep0_eq (!both alive_before (!both nonempty_before ncf_before)));
 				avail_dht0 := (!mp (!uspec* IH [hf0 rv0 htl0 dlls0]) ih_premise)
 			}
 			# Name the buckets of dlls0 so the lookup lemma, which is stated over

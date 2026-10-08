@@ -1683,163 +1683,1133 @@ module DL_L_S {
                 (!equiv fwd bwd))
 
 
+    ### dlls_end
+    ### Purpose:
+    ###     Location of the `dempty` node that ends a bucket list. For the bucket
+    ###     list of a DHT this is the table location `htl`: `initDPrList` puts it
+    ###     there and insertion never changes it (lemmas below). It is the
+    ###     location that decides whether `values` can complete.
+    declare dlls_end : (S) [(DLst (Lst S))] -> Location
+    assert dlls_end_axioms := (fun [
+        (dlls_end (dempty htl)) = htl
+        (dlls_end (dlst lh lsts tail_dlls)) = (dlls_end tail_dlls)
+    ])
+
+    # An initialized bucket list ends at the location it was given (PROVEN).
+    define initDPrList_end :=
+        (forall ll f htl . (dlls_end (initDPrList f htl ll)) = htl)
+    by-induction initDPrList_end {
+        (ll as empty) =>
+            pick-any f:(fn 'S N) htl:Location
+                (!chain [ (dlls_end (initDPrList f htl empty))
+                        = (dlls_end (dempty htl))                          [initDPrList_axioms]
+                        = htl                                              [dlls_end_axioms] ])
+      | (ll as (lst l tail_l)) =>
+            let { ih := (forall f htl . (dlls_end (initDPrList f htl tail_l)) = htl) }
+            pick-any f:(fn 'S N) htl:Location
+                (!chain [ (dlls_end (initDPrList f htl (lst l tail_l)))
+                        = (dlls_end (dlst l empty (initDPrList f htl tail_l)))  [initDPrList_axioms]
+                        = (dlls_end (initDPrList f htl tail_l))                 [dlls_end_axioms]
+                        = htl                                                   [ih] ])
+    }
+
+    # insertNAt rewrites bucket contents only, so the end location is
+    # unchanged (PROVEN, same case analysis as insertNAt_preserves_locs).
+    define insertNAt_preserves_end :=
+        (forall dlls bucket n v .
+            (dlls_end (insertNAt bucket n v dlls)) = (dlls_end dlls))
+    by-induction insertNAt_preserves_end {
+        (dempty htl) =>
+            pick-any bucket:N n:N v:'S
+            datatype-cases
+                ((dlls_end (insertNAt bucket n v (dempty htl))) = (dlls_end (dempty htl)))
+                on n
+            {
+                zero =>
+                    (!chain [ (dlls_end (insertNAt bucket zero v (dempty htl)))
+                            = (dlls_end (dempty htl))                      [insertNAt_axioms] ])
+              | (S n') =>
+                    (!chain [ (dlls_end (insertNAt bucket (S n') v (dempty htl)))
+                            = (dlls_end (dempty htl))                      [insertNAt_axioms] ])
+            }
+      | (dlst lh lsts tail_dlls) =>
+            let { IH := (forall bucket n v .
+                            (dlls_end (insertNAt bucket n v tail_dlls)) = (dlls_end tail_dlls)) }
+            pick-any bucket:N n:N v:'S
+            datatype-cases
+                ((dlls_end (insertNAt bucket n v (dlst lh lsts tail_dlls))) =
+                 (dlls_end (dlst lh lsts tail_dlls)))
+                on n
+            {
+                zero =>
+                    (!chain [ (dlls_end (insertNAt bucket zero v (dlst lh lsts tail_dlls)))
+                            = (dlls_end (dlst lh lsts tail_dlls))          [insertNAt_axioms] ])
+              | (S n') =>
+                    datatype-cases
+                        ((dlls_end (insertNAt bucket (S n') v (dlst lh lsts tail_dlls))) =
+                         (dlls_end (dlst lh lsts tail_dlls)))
+                        on bucket
+                    {
+                        zero =>
+                            let { ih := (!uspec* IH [zero n' v]) }
+                            (!chain [
+                                (dlls_end (insertNAt zero (S n') v (dlst lh lsts tail_dlls)))
+                                = (dlls_end (dlst lh (lst v lsts)
+                                                (insertNAt zero n' v tail_dlls)))   [insertNAt_axioms]
+                                = (dlls_end (insertNAt zero n' v tail_dlls))        [dlls_end_axioms]
+                                = (dlls_end tail_dlls)                              [ih]
+                                = (dlls_end (dlst lh lsts tail_dlls))               [dlls_end_axioms]
+                            ])
+                      | (S bucket') =>
+                            let { ih := (!uspec* IH [bucket' (S n') v]) }
+                            (!chain [
+                                (dlls_end (insertNAt (S bucket') (S n') v
+                                                (dlst lh lsts tail_dlls)))
+                                = (dlls_end (dlst lh lsts
+                                                (insertNAt bucket' (S n') v tail_dlls))) [insertNAt_axioms]
+                                = (dlls_end (insertNAt bucket' (S n') v tail_dlls))      [dlls_end_axioms]
+                                = (dlls_end tail_dlls)                                   [ih]
+                                = (dlls_end (dlst lh lsts tail_dlls))                    [dlls_end_axioms]
+                            ])
+                    }
+            }
+    }
+
+    # Corollary: insertDPrList preserves the end location (PROVEN).
+    define insertDPrList_preserves_end :=
+        (forall bucket rv v dlls .
+            (dlls_end (insertDPrList bucket rv v dlls)) = (dlls_end dlls))
+    conclude insertDPrList_preserves_end
+        pick-any bucket rv v dlls
+            let {
+                idx      := (bucketIndex bucket dlls dlls zero);
+                inner_eq := (!uspec* insertNAt_preserves_end [dlls idx (S rv) v]);
+                outer_eq := (!uspec* insertNAt_preserves_end
+                                    [(insertNAt idx (S rv) v dlls)
+                                     zero
+                                     (countWraps idx (S rv) dlls)
+                                     v])
+            }
+            (!chain [
+                (dlls_end (insertDPrList bucket rv v dlls))
+                = (dlls_end (insertNAt zero (countWraps idx (S rv) dlls) v
+                                (insertNAt idx (S rv) v dlls)))              [insertDPrList_axioms]
+                = (dlls_end (insertNAt idx (S rv) v dlls))                   [outer_eq]
+                = (dlls_end dlls)                                             [inner_eq]
+            ])
+
     ### values
     ### Purpose:
-    ###     Compute the set of all available values contained in a  distributed list of
-    ###     buckets. Only buckets whose location is alive contribute their stored
-    ###     values to the result.
+    ###     Compute the set of the values stored in the alive buckets of a
+    ###     distributed list of buckets. A bucket at a location that is not alive
+    ###     is skipped. The walk ends at the `dempty` node, whose location (the
+    ###     table location `htl` for the bucket list of a DHT) is critical: when
+    ###     it is not alive the result is NONE, whatever the buckets hold.
     ###
     ### Parameters:
     ###     dlls : a distributed list (DLst (Lst S)) whose nodes contain
     ###            locations and the list of stored values at each bucket.
-    ###     sets : accumulator carrying the current Set S result; usually
-    ###            initialized with Set.null by the caller.
     ###
     ### Returns:
     ###     Option (Set S), where:
-    ###         * NONE  : if dlls is empty and the accumulator is empty.
-    ###         * SOME T: the set T obtained by unioning the accumulator
-    ###                   with the value lists of all alive buckets.
+    ###         * NONE  : if the location of the `dempty` node is not alive.
+    ###         * SOME T: otherwise, T is the union of the value lists of all
+    ###                   alive buckets.
     ###
-    declare values : (S) [(DLst (Lst S)) (Set.Set S) Boolean] -> (Option (Set.Set S))
+    ### The definition is recursive, without an accumulator and without a
+    ### liveness flag. The two guarded clauses for an alive head are disjoint,
+    ### since (values tail_dlls) is either NONE or (SOME sets) for a unique sets.
+    declare values : (S) [(DLst (Lst S))] -> (Option (Set.Set S))
     define [null insert \/] := [Set.null Set.insert Set.\/]
     assert values_axioms := (fun [
-        (values (dempty htl) (null) false) = NONE
-        (values (dempty htl) (null) true)  = (SOME null)
-        (values (dempty htl) (insert s sets) b) = (SOME (insert s sets))
-        (values (dlst lh lsts tail_dlls) sets b) = [
-            (values tail_dlls sets b) when (~ Location.alive lh)
-            (values tail_dlls (\/ (l2s lsts) sets ) true) when (Location.alive lh)
+        (values (dempty htl)) = [
+            NONE        when (~ Location.alive htl)
+            (SOME null) when (Location.alive htl)
+        ]
+        (values (dlst lh lsts tail_dlls)) = [
+            (values tail_dlls)
+                when (~ Location.alive lh)
+            (SOME ((l2s lsts) \/ sets))
+                when ((Location.alive lh) & ((values tail_dlls) = (SOME sets)))
+            NONE
+                when ((Location.alive lh) & ((values tail_dlls) = NONE))
         ]
     ])
 
-    ### values totality under the `true` flag (PROVEN)
-    ###
-    ### The public DHT-level `values` always calls `DL_L_S.values` with the
-    ### boolean flag set to `true` (see values_aux_axioms in dhtable_mateo.ath).
-    ### The three lemmas below establish, by structural induction, that under a
-    ### `true` flag `values` never returns NONE, and in particular an *empty*
-    ### distributed list of buckets returns `SOME` of the accumulator unchanged.
-    ### This is the sound core of the Option semantics: NONE is the list-level
-    ### sentinel for the `false`-flag empty case only, and is never surfaced
-    ### through the public boundary, so an empty (indeed any) DHT is
-    ### `available` AND returns `SOME` — the two are consistent.
-
-    # The empty bucket list returns the accumulator unchanged, under `true`.
-    define values_empty_some :=
-        (forall sets htl . (values (dempty htl) sets true) = (SOME sets))
-    datatype-cases values_empty_some {
-        (sets as Set.null) =>
-            pick-any htl:Location
-                (!chain [ (values (dempty htl) Set.null true)
-                        = (SOME Set.null)                          [values_axioms] ])
-      | (sets as (Set.insert x:'S rest:(Set.Set 'S))) =>
-            pick-any htl:Location
-                (!chain [ (values (dempty htl) (Set.insert x rest) true)
-                        = (SOME (Set.insert x rest))               [values_axioms] ])
-    }
-
-    # Under the `true` flag, `values` is total (never NONE) for any bucket
-    # list and any accumulator.
-    define values_true_some :=
-        (forall dlls sets . exists s . (values dlls sets true) = (SOME s))
-    by-induction values_true_some {
-        (dlls as (dempty htl:Location)) =>
-            pick-any sets:(Set.Set 'S)
-                let { base := (!uspec* values_empty_some [sets htl]) }
-                (!egen (exists s . (values (dempty htl) sets true) = (SOME s)) sets)
-      | (dlls as (dlst lh lsts tail_dlls)) =>
-            let { ih := (forall sets . exists s . (values tail_dlls sets true) = (SOME s)) }
-            pick-any sets:(Set.Set 'S)
+    # values is NONE when the end location is not alive (PROVEN).
+    define values_end_dead :=
+        (forall dlls . (~ Location.alive (dlls_end dlls)) ==> ((values dlls) = NONE))
+    by-induction values_end_dead {
+        (dempty htl:Location) =>
+            assume hyp := (~ Location.alive (dlls_end (dempty htl)))
+                let { nd := (!chain-> [hyp ==> (~ Location.alive htl)  [dlls_end_axioms]]) }
+                (!chain [ (values (dempty htl)) = NONE                  [values_axioms] ])
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { ih := ((~ Location.alive (dlls_end tail_dlls)) ==> ((values tail_dlls) = NONE)) }
+            assume hyp := (~ Location.alive (dlls_end (dlst lh lsts tail_dlls)))
+                let { nd := (!chain-> [hyp ==> (~ Location.alive (dlls_end tail_dlls)) [dlls_end_axioms]]);
+                      tn := (!mp ih nd) }
                 (!two-cases
                     assume alv := (Location.alive lh)
-                        let {
-                            inst := (!uspec ih (\/ (l2s lsts) sets)) }
-                        pick-witness s0 for inst inst_body
-                            let {
-                                eqn := (!chain
-                                    [ (values (dlst lh lsts tail_dlls) sets true)
-                                    = (values tail_dlls (\/ (l2s lsts) sets) true) [values_axioms alv]
-                                    = (SOME s0)                                     [inst_body] ]) }
-                            (!egen (exists s . (values (dlst lh lsts tail_dlls) sets true) = (SOME s))
-                                   s0)
+                        let { _ := (!both alv tn) }
+                        (!chain [ (values (dlst lh lsts tail_dlls)) = NONE   [values_axioms] ])
                     assume nalv := (~ Location.alive lh)
-                        let {
-                            inst := (!uspec ih sets) }
-                        pick-witness s0 for inst inst_body
-                            let {
-                                eqn := (!chain
-                                    [ (values (dlst lh lsts tail_dlls) sets true)
-                                    = (values tail_dlls sets true)                 [values_axioms nalv]
-                                    = (SOME s0)                                     [inst_body] ]) }
-                            (!egen (exists s . (values (dlst lh lsts tail_dlls) sets true) = (SOME s))
-                                   s0))
+                        (!chain [ (values (dlst lh lsts tail_dlls))
+                                = (values tail_dlls)                          [values_axioms]
+                                = NONE                                        [tn] ]))
     }
 
-    # A freshly-initialised bucket list (all buckets empty) returns the
-    # accumulator unchanged, under `true`. With accumulator Set.null this gives
-    # `values (initDPrList ..) Set.null true = SOME Set.null`, the empty-DHT case
-    # of values_functional_correctness. The accumulator never grows because every
-    # bucket contributes `l2s empty = Set.null`, absorbed by `Set.null \/ sets = sets`.
-    define values_init_some :=
-        (forall ll f htl sets . (values (initDPrList f htl ll) sets true) = (SOME sets))
-    by-induction values_init_some {
-        (ll as empty) =>
-            pick-any f:(fn 'S N) htl:Location sets:(Set.Set 'S)
-                let { base := (!uspec* values_empty_some [sets htl]) }
-                (!chain [ (values (initDPrList f htl empty) sets true)
-                        = (values (dempty htl) sets true)          [initDPrList_axioms]
-                        = (SOME sets)                              [base] ])
-      | (ll as (lst l tail_l)) =>
-            let { ih := (forall f htl sets . (values (initDPrList f htl tail_l) sets true) = (SOME sets)) }
-            pick-any f:(fn 'S N) htl:Location sets:(Set.Set 'S)
-                let { ihi := (!uspec* ih [f htl sets]) }
+    # values is SOME of a set when the end location is alive (PROVEN).
+    define values_end_alive :=
+        (forall dlls . (Location.alive (dlls_end dlls)) ==>
+                       (exists sets . (values dlls) = (SOME sets)))
+    by-induction values_end_alive {
+        (dempty htl:Location) =>
+            assume hyp := (Location.alive (dlls_end (dempty htl)))
+                let { a := (!chain-> [hyp ==> (Location.alive htl)       [dlls_end_axioms]]);
+                      e := (!chain [ (values (dempty htl)) = (SOME null)  [values_axioms] ]) }
+                (!egen (exists sets . (values (dempty htl)) = (SOME sets)) null)
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { ih := ((Location.alive (dlls_end tail_dlls)) ==>
+                         (exists sets . (values tail_dlls) = (SOME sets))) }
+            assume hyp := (Location.alive (dlls_end (dlst lh lsts tail_dlls)))
+                let { a  := (!chain-> [hyp ==> (Location.alive (dlls_end tail_dlls)) [dlls_end_axioms]]);
+                      ts := (!mp ih a) }
+                pick-witness t for ts tdef
                 (!two-cases
-                    assume alv := (Location.alive l)
-                        (!chain
-                            [ (values (initDPrList f htl (lst l tail_l)) sets true)
-                            = (values (dlst l empty (initDPrList f htl tail_l)) sets true)  [initDPrList_axioms]
-                            = (values (initDPrList f htl tail_l) (\/ (l2s empty) sets) true) [values_axioms alv]
-                            = (values (initDPrList f htl tail_l) (\/ Set.null sets) true)     [Lst.toSet.toSet-empty-axiom]
-                            = (values (initDPrList f htl tail_l) sets true)                   [Set.union-def]
-                            = (SOME sets)                                                      [ihi] ])
-                    assume nalv := (~ Location.alive l)
-                        (!chain
-                            [ (values (initDPrList f htl (lst l tail_l)) sets true)
-                            = (values (dlst l empty (initDPrList f htl tail_l)) sets true)  [initDPrList_axioms]
-                            = (values (initDPrList f htl tail_l) sets true)                 [values_axioms nalv]
-                            = (SOME sets)                                                    [ihi] ]))
+                    assume alv := (Location.alive lh)
+                        let { _ := (!both alv tdef);
+                              e := (!chain [ (values (dlst lh lsts tail_dlls))
+                                           = (SOME ((l2s lsts) \/ t))         [values_axioms] ]) }
+                        (!egen (exists sets . (values (dlst lh lsts tail_dlls)) = (SOME sets))
+                               ((l2s lsts) \/ t))
+                    assume nalv := (~ Location.alive lh)
+                        let { e := (!chain [ (values (dlst lh lsts tail_dlls))
+                                           = (values tail_dlls)               [values_axioms]
+                                           = (SOME t)                         [tdef] ]) }
+                        (!egen (exists sets . (values (dlst lh lsts tail_dlls)) = (SOME sets)) t))
     }
 
-    ### Values analogue of in_after_insert_self / in_after_insert_other
+    # A freshly initialized bucket list (all buckets empty) whose end location
+    # is alive holds no values (PROVEN). Every alive bucket contributes
+    # (l2s empty) = null, and null \/ null = null.
+    define values_init :=
+        (forall ll f htl . (Location.alive htl) ==>
+                           ((values (initDPrList f htl ll)) = (SOME null)))
+    by-induction values_init {
+        (ll as empty) =>
+            pick-any f:(fn 'S N) htl:Location
+                assume alvh := (Location.alive htl)
+                    (!chain [ (values (initDPrList f htl empty))
+                            = (values (dempty htl))                      [initDPrList_axioms]
+                            = (SOME null)                                [values_axioms] ])
+      | (ll as (lst l tail_l)) =>
+            let { ih := (forall f htl . (Location.alive htl) ==>
+                                        ((values (initDPrList f htl tail_l)) = (SOME null))) }
+            pick-any f:(fn 'S N) htl:Location
+                assume alvh := (Location.alive htl)
+                    let { ihi := (!mp (!uspec* ih [f htl]) alvh) }
+                    (!two-cases
+                        assume alv := (Location.alive l)
+                            let { _ := (!both alv ihi) }
+                            (!chain
+                                [ (values (initDPrList f htl (lst l tail_l)))
+                                = (values (dlst l empty (initDPrList f htl tail_l)))  [initDPrList_axioms]
+                                = (SOME ((l2s empty) \/ null))                          [values_axioms]
+                                = (SOME (null \/ null))                                 [Lst.toSet.toSet-empty-axiom]
+                                = (SOME null)                                           [Set.union-def] ])
+                        assume nalv := (~ Location.alive l)
+                            (!chain
+                                [ (values (initDPrList f htl (lst l tail_l)))
+                                = (values (dlst l empty (initDPrList f htl tail_l)))  [initDPrList_axioms]
+                                = (values (initDPrList f htl tail_l))                  [values_axioms]
+                                = (SOME null)                                          [ihi] ]))
+    }
+
+    ### values_after_insert (PROVEN)
     ###
-    ### Inserting v0 into dlls extends the value-set returned by `values` by
+    ### Inserting v0 into dlls extends the value set returned by `values` by
     ### Set.insert v0, provided that at least one bucket in the insert's
-    ### rv+1-window is alive (i.e. when available_key holds on the window),
-    ### so v0 actually lands in an alive bucket and gets unioned into the
-    ### accumulator. This is the last remaining obligation on the insert side of
-    ### values_functional_correctness (dhtable_mateo.ath); with it, and the three
-    ### PROVEN totality lemmas above, that theorem is now a real datatype-cases
-    ### proof whose only residual assumption is this single lemma.
+    ### rv+1 window is alive (available_key), so v0 lands in an alive bucket.
+    ### The premise `(values dlls) = (SOME s0)` names the pre-insert value set;
+    ### it also says that the end location is alive.
     ###
-    ### Stated at the `true` flag to match the public `values` boundary (the
-    ### former `false`-flag statement did not compose with values_aux_axioms).
-    ### The premise `(values dlls Set.null true) = (SOME s0)` merely names the
-    ### pre-insert value set (it always holds, by values_true_some).
-    ###
-    ### Proof sketch (deferred): structural induction on dlls, threading the
-    ### accumulator through the recursion; inside the insert's window an alive
-    ### bucket contributes `(l2s (lst v0 lsts)) = Set.insert v0 (l2s lsts)` and the
-    ### union absorbs the extra element, while outside the window buckets are
-    ### untouched. Needs a strengthened helper abstracting over the accumulator,
-    ### analogous to the strengthening used in in_init_false.
-    # TODO: discharge by structural induction on dlls with a strengthened helper.
+    ### Proof structure. `hits bucket n dlls` says that some bucket at the
+    ### positions [bucket, bucket + n) written by `insertNAt` is alive.
+    ###   * Write side: `values_insertNAt` shows that insertNAt adds v0 to the
+    ###     value set exactly when `hits` holds, and `hits_insertNAt` that
+    ###     insertion does not change `hits` (it only reads locations).
+    ###   * Read side: `ak_hits_insert` shows that the window accepted by
+    ###     `available_key` contains an alive bucket among the two segments that
+    ###     `insertDPrList` writes, the one starting at the reduced index and the
+    ###     wrapped one at the front. It goes through `ak_hits` (bucket zero of a
+    ###     suffix, by induction on rv) and `ak_hits_gen` (any bucket index, by
+    ###     induction on it, following `bucketIndex` with the suffix function
+    ###     `drop`).
+
+
+    define [pos cnt] := [?pos:N ?cnt:N]
+    define [setA setT] := [?setA:(Set.Set 'S) ?setT:(Set.Set 'S)]
+
+    ### Two set identities, by extensionality.
+    define union_insert_right :=
+        (forall setA setT v . (setA \/ (insert v setT)) = (insert v (setA \/ setT)))
+    conclude union_insert_right
+        pick-any setA:(Set.Set 'S) setT:(Set.Set 'S) v:'S
+            (!Set.set-identity-intro-direct
+                pick-any x:'S
+                    (!chain [ (Set.in x (setA \/ (insert v setT)))
+                            <==> ((Set.in x setA) | (Set.in x (insert v setT)))   [Set.UC]
+                            <==> ((Set.in x setA) | ((x = v) | (Set.in x setT)))  [Set.in-def]
+                            <==> ((x = v) | ((Set.in x setA) | (Set.in x setT)))  [prop-taut]
+                            <==> ((x = v) | (Set.in x (setA \/ setT)))            [Set.UC]
+                            <==> (Set.in x (insert v (setA \/ setT)))             [Set.in-def] ]))
+
+    define insert_idem :=
+        (forall v setT . (insert v (insert v setT)) = (insert v setT))
+    conclude insert_idem
+        pick-any v:'S setT:(Set.Set 'S)
+            (!Set.set-identity-intro-direct
+                pick-any x:'S
+                    (!chain [ (Set.in x (insert v (insert v setT)))
+                            <==> ((x = v) | (Set.in x (insert v setT)))        [Set.in-def]
+                            <==> ((x = v) | ((x = v) | (Set.in x setT)))       [Set.in-def]
+                            <==> ((x = v) | (Set.in x setT))                   [prop-taut]
+                            <==> (Set.in x (insert v setT))                    [Set.in-def] ]))
+
+    ### hits: some bucket at positions [bucket, bucket + n) of dlls is alive.
+    ### Same patterns as insertNAt, which writes exactly those positions.
+    declare hits : (S) [N N (DLst (Lst S))] -> Boolean
+    assert hits_axioms := (fun [
+        (hits bucket zero dlls) <==> false
+        (hits bucket (S n) (dempty htl)) <==> false
+        (hits zero (S n) (dlst lh lsts tail_dlls)) <==>
+            ((Location.alive lh) | (hits zero n tail_dlls))
+        (hits (S bucket) (S n) (dlst lh lsts tail_dlls)) <==>
+            (hits bucket (S n) tail_dlls)
+    ])
+
+    # hits is monotone in the number of positions (PROVEN).
+    define hits_step :=
+        (forall dlls n . (hits zero n dlls) ==> (hits zero (S n) dlls))
+    by-induction hits_step {
+        (dempty htl:Location) =>
+            pick-any n:N
+                let { nh := datatype-cases (~ hits zero n (dempty htl)) on n {
+                          zero =>
+                            (!by-contradiction (~ hits zero zero (dempty htl))
+                                assume h := (hits zero zero (dempty htl))
+                                    (!chain-> [h ==> false [hits_axioms]]))
+                        | (S m') =>
+                            (!by-contradiction (~ hits zero (S m') (dempty htl))
+                                assume h := (hits zero (S m') (dempty htl))
+                                    (!chain-> [h ==> false [hits_axioms]]))
+                      } }
+                assume h := (hits zero n (dempty htl))
+                    (!from-complements (hits zero (S n) (dempty htl)) h nh)
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { ih := (forall n . (hits zero n tail_dlls) ==> (hits zero (S n) tail_dlls)) }
+            pick-any n:N
+                datatype-cases ((hits zero n (dlst lh lsts tail_dlls)) ==>
+                                (hits zero (S n) (dlst lh lsts tail_dlls))) on n {
+                    zero =>
+                        assume h := (hits zero zero (dlst lh lsts tail_dlls))
+                            let { _ := (!chain-> [h ==> false [hits_axioms]]) }
+                            (!from-false (hits zero (S zero) (dlst lh lsts tail_dlls)))
+                  | (S m') =>
+                        assume h := (hits zero (S m') (dlst lh lsts tail_dlls))
+                            (!chain-> [ h
+                                ==> ((Location.alive lh) | (hits zero m' tail_dlls))     [hits_axioms]
+                                ==> ((Location.alive lh) | (hits zero (S m') tail_dlls)) [ih]
+                                ==> (hits zero (S (S m')) (dlst lh lsts tail_dlls))     [hits_axioms] ])
+                }
+    }
+
+    # The wrapped part of a window is no longer than the window (PROVEN).
+    define hits_countWraps :=
+        (forall dlls n o_dlls .
+            (hits zero (countWraps zero n dlls) o_dlls) ==> (hits zero n o_dlls))
+    by-induction hits_countWraps {
+        (dempty htl:Location) =>
+            pick-any n:N o_dlls:(DLst (Lst 'S))
+                datatype-cases ((hits zero (countWraps zero n (dempty htl)) o_dlls) ==>
+                                (hits zero n o_dlls)) on n {
+                    zero =>
+                        assume h := (hits zero (countWraps zero zero (dempty htl)) o_dlls)
+                            let { _ := (!chain-> [ h ==> (hits zero zero o_dlls) [countWraps_axioms]
+                                                     ==> false                   [hits_axioms] ]) }
+                            (!from-false (hits zero zero o_dlls))
+                  | (S m') =>
+                        assume h := (hits zero (countWraps zero (S m') (dempty htl)) o_dlls)
+                            (!chain-> [ h ==> (hits zero (S m') o_dlls) [countWraps_axioms] ])
+                }
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { ih := (forall n o_dlls .
+                            (hits zero (countWraps zero n tail_dlls) o_dlls) ==> (hits zero n o_dlls)) }
+            pick-any n:N o_dlls:(DLst (Lst 'S))
+                datatype-cases ((hits zero (countWraps zero n (dlst lh lsts tail_dlls)) o_dlls) ==>
+                                (hits zero n o_dlls)) on n {
+                    zero =>
+                        assume h := (hits zero (countWraps zero zero (dlst lh lsts tail_dlls)) o_dlls)
+                            let { _ := (!chain-> [ h ==> (hits zero zero o_dlls) [countWraps_axioms]
+                                                     ==> false                   [hits_axioms] ]) }
+                            (!from-false (hits zero zero o_dlls))
+                  | (S m') =>
+                        assume h := (hits zero (countWraps zero (S m') (dlst lh lsts tail_dlls)) o_dlls)
+                            (!chain-> [ h
+                                ==> (hits zero (countWraps zero m' tail_dlls) o_dlls) [countWraps_axioms]
+                                ==> (hits zero m' o_dlls)                             [ih]
+                                ==> (hits zero (S m') o_dlls)                         [hits_step] ])
+                }
+    }
+
+    # values on a bucket list with an alive head (PROVEN): the tail returns a
+    # set, and the result is the union of the head bucket with it.
+    define values_alive_head :=
+        (forall lh lsts tail_dlls s0 .
+            ((Location.alive lh) & ((values (dlst lh lsts tail_dlls)) = (SOME s0))) ==>
+            (exists sets . ((values tail_dlls) = (SOME sets)) & (s0 = ((l2s lsts) \/ sets))))
+    conclude values_alive_head
+        pick-any lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S)) s0:(Set.Set 'S)
+            assume hyp := ((Location.alive lh) & ((values (dlst lh lsts tail_dlls)) = (SOME s0)))
+                let { alv := (!left-and hyp);
+                      hv  := (!right-and hyp) }
+                (!two-cases
+                    assume ae := (Location.alive (dlls_end tail_dlls))
+                        let { ex := (!mp (!uspec values_end_alive tail_dlls) ae) }
+                        pick-witness t for ex tdef
+                            let { _  := (!both alv tdef);
+                                  e1 := (!chain [ (SOME s0)
+                                                = (values (dlst lh lsts tail_dlls)) [hv]
+                                                = (SOME ((l2s lsts) \/ t))          [values_axioms] ]);
+                                  e2 := (!chain-> [ e1 ==> (s0 = ((l2s lsts) \/ t)) [(datatype-axioms "Option")] ]);
+                                  c  := (!both tdef e2) }
+                            (!egen (exists sets . ((values tail_dlls) = (SOME sets)) &
+                                                  (s0 = ((l2s lsts) \/ sets)))
+                                   t)
+                    assume nae := (~ Location.alive (dlls_end tail_dlls))
+                        let { tn := (!mp (!uspec values_end_dead tail_dlls) nae);
+                              _  := (!both alv tn);
+                              e0 := (!chain [ (values (dlst lh lsts tail_dlls)) = NONE [values_axioms] ]);
+                              e1 := (!chain [ (SOME s0)
+                                            = (values (dlst lh lsts tail_dlls)) [hv]
+                                            = NONE                              [e0] ]);
+                              e2 := (!sym e1);
+                              nc := (!chain-> [ true ==> (~ NONE = (SOME s0)) [(datatype-axioms "Option")] ]) }
+                        (!from-complements
+                            (exists sets . ((values tail_dlls) = (SOME sets)) & (s0 = ((l2s lsts) \/ sets)))
+                            e2 nc))
+
+    define [bk1 bk2] := [?bk1:(Lst 'S) ?bk2:(Lst 'S)]
+    define [Xd Yd] := [?Xd:(DLst (Lst 'S)) ?Yd:(DLst (Lst 'S))]
+
+    ### insertNAt adds v to the value set exactly when it writes an alive
+    ### bucket (PROVEN, by induction on the bucket list).
+    define values_insertNAt :=
+        (forall dlls bucket n v s0 .
+            ((values dlls) = (SOME s0)) ==>
+            (((hits bucket n dlls) ==> ((values (insertNAt bucket n v dlls)) = (SOME (insert v s0)))) &
+             ((~ hits bucket n dlls) ==> ((values (insertNAt bucket n v dlls)) = (SOME s0)))))
+    by-induction values_insertNAt {
+        (dempty htl:Location) =>
+            pick-any bucket:N n:N v:'S s0:(Set.Set 'S)
+                assume hv := ((values (dempty htl)) = (SOME s0))
+                    let { facts := datatype-cases ((~ hits bucket n (dempty htl)) &
+                                                   ((insertNAt bucket n v (dempty htl)) = (dempty htl))) on n {
+                              zero =>
+                                (!both (!by-contradiction (~ hits bucket zero (dempty htl))
+                                          assume h := (hits bucket zero (dempty htl))
+                                              (!chain-> [h ==> false [hits_axioms]]))
+                                       (!chain [(insertNAt bucket zero v (dempty htl)) = (dempty htl) [insertNAt_axioms]]))
+                            | (S m') =>
+                                (!both (!by-contradiction (~ hits bucket (S m') (dempty htl))
+                                          assume h := (hits bucket (S m') (dempty htl))
+                                              (!chain-> [h ==> false [hits_axioms]]))
+                                       (!chain [(insertNAt bucket (S m') v (dempty htl)) = (dempty htl) [insertNAt_axioms]]))
+                          };
+                          nh  := (!left-and facts);
+                          ins := (!right-and facts) }
+                    (!both (assume h := (hits bucket n (dempty htl))
+                              (!from-complements ((values (insertNAt bucket n v (dempty htl))) = (SOME (insert v s0)))
+                                                 h nh))
+                           (assume h2 := (~ hits bucket n (dempty htl))
+                              (!chain [ (values (insertNAt bucket n v (dempty htl)))
+                                      = (values (dempty htl))                    [ins]
+                                      = (SOME s0)                                [hv] ])))
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall bucket n v s0 .
+                            ((values tail_dlls) = (SOME s0)) ==>
+                            (((hits bucket n tail_dlls) ==>
+                              ((values (insertNAt bucket n v tail_dlls)) = (SOME (insert v s0)))) &
+                             ((~ hits bucket n tail_dlls) ==>
+                              ((values (insertNAt bucket n v tail_dlls)) = (SOME s0))))) }
+            pick-any bucket:N n:N v:'S s0:(Set.Set 'S)
+                assume hv := ((values (dlst lh lsts tail_dlls)) = (SOME s0))
+                    datatype-cases
+                        (((hits bucket n (dlst lh lsts tail_dlls)) ==>
+                          ((values (insertNAt bucket n v (dlst lh lsts tail_dlls))) = (SOME (insert v s0)))) &
+                         ((~ hits bucket n (dlst lh lsts tail_dlls)) ==>
+                          ((values (insertNAt bucket n v (dlst lh lsts tail_dlls))) = (SOME s0))))
+                    on n {
+                        zero =>
+                            let { nh := (!by-contradiction (~ hits bucket zero (dlst lh lsts tail_dlls))
+                                           assume h := (hits bucket zero (dlst lh lsts tail_dlls))
+                                               (!chain-> [h ==> false [hits_axioms]]));
+                                  ins := (!chain [ (insertNAt bucket zero v (dlst lh lsts tail_dlls))
+                                                 = (dlst lh lsts tail_dlls)    [insertNAt_axioms] ]) }
+                            (!both (assume h := (hits bucket zero (dlst lh lsts tail_dlls))
+                                      (!from-complements
+                                          ((values (insertNAt bucket zero v (dlst lh lsts tail_dlls))) = (SOME (insert v s0)))
+                                          h nh))
+                                   (assume h2 := (~ hits bucket zero (dlst lh lsts tail_dlls))
+                                      (!chain [ (values (insertNAt bucket zero v (dlst lh lsts tail_dlls)))
+                                              = (values (dlst lh lsts tail_dlls))  [ins]
+                                              = (SOME s0)                          [hv] ])))
+                      | (S m') =>
+                          datatype-cases
+                            (((hits bucket (S m') (dlst lh lsts tail_dlls)) ==>
+                              ((values (insertNAt bucket (S m') v (dlst lh lsts tail_dlls))) = (SOME (insert v s0)))) &
+                             ((~ hits bucket (S m') (dlst lh lsts tail_dlls)) ==>
+                              ((values (insertNAt bucket (S m') v (dlst lh lsts tail_dlls))) = (SOME s0))))
+                          on bucket {
+                            zero =>
+                              let { xt   := (insertNAt zero m' v tail_dlls);
+                                    insE := (!chain [ (insertNAt zero (S m') v (dlst lh lsts tail_dlls))
+                                                    = (dlst lh (lst v lsts) xt)            [insertNAt_axioms] ]);
+                                    hitsE := (!chain [ (hits zero (S m') (dlst lh lsts tail_dlls))
+                                                     <==> ((Location.alive lh) | (hits zero m' tail_dlls)) [hits_axioms] ]) }
+                              (!two-cases
+                                assume alv := (Location.alive lh)
+                                  let { ex := (!mp (!uspec* values_alive_head [lh lsts tail_dlls s0]) (!both alv hv)) }
+                                  pick-witness t for ex tdef
+                                    let { tv  := (!left-and tdef);
+                                          s0e := (!sym (!right-and tdef));
+                                          ih  := (!mp (!uspec* IH [zero m' v t]) tv);
+                                          hz  := (!chain-> [ alv ==> ((Location.alive lh) | (hits zero m' tail_dlls)) [alternate]
+                                                                 ==> (hits zero (S m') (dlst lh lsts tail_dlls)) [hitsE] ]);
+                                          res := (!two-cases
+                                                   assume hm := (hits zero m' tail_dlls)
+                                                     let { xv := (!mp (!left-and ih) hm);
+                                                           _  := (!both alv xv) }
+                                                     (!chain [ (values (insertNAt zero (S m') v (dlst lh lsts tail_dlls)))
+                                                             = (values (dlst lh (lst v lsts) xt))                [insE]
+                                                             = (SOME ((l2s (lst v lsts)) \/ (insert v t)))        [values_axioms]
+                                                             = (SOME ((insert v (l2s lsts)) \/ (insert v t)))     [Lst.toSet.toSet-lst-axiom]
+                                                             = (SOME (insert v ((l2s lsts) \/ (insert v t))))     [Set.union-def]
+                                                             = (SOME (insert v (insert v ((l2s lsts) \/ t))))     [union_insert_right]
+                                                             = (SOME (insert v ((l2s lsts) \/ t)))                [insert_idem]
+                                                             = (SOME (insert v s0))                               [s0e] ])
+                                                   assume nhm := (~ hits zero m' tail_dlls)
+                                                     let { xv := (!mp (!right-and ih) nhm);
+                                                           _  := (!both alv xv) }
+                                                     (!chain [ (values (insertNAt zero (S m') v (dlst lh lsts tail_dlls)))
+                                                             = (values (dlst lh (lst v lsts) xt))                [insE]
+                                                             = (SOME ((l2s (lst v lsts)) \/ t))                   [values_axioms]
+                                                             = (SOME ((insert v (l2s lsts)) \/ t))                [Lst.toSet.toSet-lst-axiom]
+                                                             = (SOME (insert v ((l2s lsts) \/ t)))                [Set.union-def]
+                                                             = (SOME (insert v s0))                               [s0e] ])) }
+                                    (!both (assume h := (hits zero (S m') (dlst lh lsts tail_dlls)) (!claim res))
+                                           (assume nh := (~ hits zero (S m') (dlst lh lsts tail_dlls))
+                                              (!from-complements
+                                                  ((values (insertNAt zero (S m') v (dlst lh lsts tail_dlls))) = (SOME s0))
+                                                  hz nh)))
+                                assume nalv := (~ Location.alive lh)
+                                  let { dv := (!chain [ (values (dlst lh lsts tail_dlls)) = (values tail_dlls) [values_axioms] ]);
+                                        tv := (!chain [ (values tail_dlls) = (values (dlst lh lsts tail_dlls)) [dv]
+                                                                           = (SOME s0)                         [hv] ]);
+                                        ih := (!mp (!uspec* IH [zero m' v s0]) tv);
+                                        xvE := (!chain [ (values (insertNAt zero (S m') v (dlst lh lsts tail_dlls)))
+                                                       = (values (dlst lh (lst v lsts) xt))  [insE]
+                                                       = (values xt)                         [values_axioms] ]) }
+                                  (!both (assume h := (hits zero (S m') (dlst lh lsts tail_dlls))
+                                            let { hm := (!dsyl (!chain-> [h ==> ((Location.alive lh) | (hits zero m' tail_dlls)) [hitsE]]) nalv);
+                                                  xv := (!mp (!left-and ih) hm) }
+                                            (!chain [ (values (insertNAt zero (S m') v (dlst lh lsts tail_dlls)))
+                                                    = (values xt)              [xvE]
+                                                    = (SOME (insert v s0))     [xv] ]))
+                                         (assume nh := (~ hits zero (S m') (dlst lh lsts tail_dlls))
+                                            let { nhm := (!by-contradiction (~ hits zero m' tail_dlls)
+                                                            assume hm := (hits zero m' tail_dlls)
+                                                              (!absurd (!chain-> [ hm ==> ((Location.alive lh) | (hits zero m' tail_dlls)) [alternate]
+                                                                                      ==> (hits zero (S m') (dlst lh lsts tail_dlls)) [hitsE] ])
+                                                                       nh));
+                                                  xv := (!mp (!right-and ih) nhm) }
+                                            (!chain [ (values (insertNAt zero (S m') v (dlst lh lsts tail_dlls)))
+                                                    = (values xt)              [xvE]
+                                                    = (SOME s0)                [xv] ]))))
+                          | (S b') =>
+                              let { xt   := (insertNAt b' (S m') v tail_dlls);
+                                    insE := (!chain [ (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls))
+                                                    = (dlst lh lsts xt)                    [insertNAt_axioms] ]);
+                                    hitsE := (!chain [ (hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                                     <==> (hits b' (S m') tail_dlls)        [hits_axioms] ]);
+                                    fwd := assume h := (hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                             (!chain-> [h ==> (hits b' (S m') tail_dlls) [hitsE]]);
+                                    bwd := assume nh := (~ hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                             (!by-contradiction (~ hits b' (S m') tail_dlls)
+                                                assume hm := (hits b' (S m') tail_dlls)
+                                                  (!absurd (!chain-> [hm ==> (hits (S b') (S m') (dlst lh lsts tail_dlls)) [hitsE]])
+                                                           nh)) }
+                              (!two-cases
+                                assume alv := (Location.alive lh)
+                                  let { ex := (!mp (!uspec* values_alive_head [lh lsts tail_dlls s0]) (!both alv hv)) }
+                                  pick-witness t for ex tdef
+                                    let { tv  := (!left-and tdef);
+                                          s0e := (!sym (!right-and tdef));
+                                          ih  := (!mp (!uspec* IH [b' (S m') v t]) tv) }
+                                    (!both (assume h := (hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                              let { xv := (!mp (!left-and ih) (!mp fwd h));
+                                                    _  := (!both alv xv) }
+                                              (!chain [ (values (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls)))
+                                                      = (values (dlst lh lsts xt))                     [insE]
+                                                      = (SOME ((l2s lsts) \/ (insert v t)))             [values_axioms]
+                                                      = (SOME (insert v ((l2s lsts) \/ t)))             [union_insert_right]
+                                                      = (SOME (insert v s0))                            [s0e] ]))
+                                           (assume nh := (~ hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                              let { xv := (!mp (!right-and ih) (!mp bwd nh));
+                                                    _  := (!both alv xv) }
+                                              (!chain [ (values (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls)))
+                                                      = (values (dlst lh lsts xt))                     [insE]
+                                                      = (SOME ((l2s lsts) \/ t))                        [values_axioms]
+                                                      = (SOME s0)                                       [s0e] ])))
+                                assume nalv := (~ Location.alive lh)
+                                  let { dv := (!chain [ (values (dlst lh lsts tail_dlls)) = (values tail_dlls) [values_axioms] ]);
+                                        tv := (!chain [ (values tail_dlls) = (values (dlst lh lsts tail_dlls)) [dv]
+                                                                           = (SOME s0)                         [hv] ]);
+                                        ih := (!mp (!uspec* IH [b' (S m') v s0]) tv);
+                                        xvE := (!chain [ (values (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls)))
+                                                       = (values (dlst lh lsts xt))   [insE]
+                                                       = (values xt)                  [values_axioms] ]) }
+                                  (!both (assume h := (hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                            let { xv := (!mp (!left-and ih) (!mp fwd h)) }
+                                            (!chain [ (values (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls)))
+                                                    = (values xt)              [xvE]
+                                                    = (SOME (insert v s0))     [xv] ]))
+                                         (assume nh := (~ hits (S b') (S m') (dlst lh lsts tail_dlls))
+                                            let { xv := (!mp (!right-and ih) (!mp bwd nh)) }
+                                            (!chain [ (values (insertNAt (S b') (S m') v (dlst lh lsts tail_dlls)))
+                                                    = (values xt)              [xvE]
+                                                    = (SOME s0)                [xv] ]))))
+                          }
+                    }
+    }
+
+    ### hits only reads the locations of a bucket list (PROVEN). Two bucket
+    ### lists with the same head location and tails with the same hits agree.
+    define hits_cons :=
+        (forall lh bk1 bk2 Xd Yd .
+            (forall bucket n . (hits bucket n Xd) <==> (hits bucket n Yd)) ==>
+            (forall bucket n . (hits bucket n (dlst lh bk1 Xd)) <==> (hits bucket n (dlst lh bk2 Yd))))
+    conclude hits_cons
+        pick-any lh:Location bk1:(Lst 'S) bk2:(Lst 'S) Xd:(DLst (Lst 'S)) Yd:(DLst (Lst 'S))
+            assume hyp := (forall bucket n . (hits bucket n Xd) <==> (hits bucket n Yd))
+                pick-any bucket:N n:N
+                    datatype-cases ((hits bucket n (dlst lh bk1 Xd)) <==> (hits bucket n (dlst lh bk2 Yd))) on n {
+                        zero =>
+                            (!chain [ (hits bucket zero (dlst lh bk1 Xd))
+                                    <==> false                              [hits_axioms]
+                                    <==> (hits bucket zero (dlst lh bk2 Yd)) [hits_axioms] ])
+                      | (S m') =>
+                            datatype-cases ((hits bucket (S m') (dlst lh bk1 Xd)) <==>
+                                            (hits bucket (S m') (dlst lh bk2 Yd))) on bucket {
+                                zero =>
+                                    (!chain [ (hits zero (S m') (dlst lh bk1 Xd))
+                                            <==> ((Location.alive lh) | (hits zero m' Xd)) [hits_axioms]
+                                            <==> ((Location.alive lh) | (hits zero m' Yd)) [hyp]
+                                            <==> (hits zero (S m') (dlst lh bk2 Yd))        [hits_axioms] ])
+                              | (S b') =>
+                                    (!chain [ (hits (S b') (S m') (dlst lh bk1 Xd))
+                                            <==> (hits b' (S m') Xd)                    [hits_axioms]
+                                            <==> (hits b' (S m') Yd)                    [hyp]
+                                            <==> (hits (S b') (S m') (dlst lh bk2 Yd))   [hits_axioms] ])
+                            }
+                    }
+
+    # insertNAt does not change hits (PROVEN, by induction on the bucket list).
+    define hits_insertNAt :=
+        (forall dlls bucket0 cnt v bucket n .
+            (hits bucket n (insertNAt bucket0 cnt v dlls)) <==> (hits bucket n dlls))
+    by-induction hits_insertNAt {
+        (dempty htl:Location) =>
+            pick-any bucket0:N cnt:N v:'S bucket:N n:N
+                let { ins := datatype-cases ((insertNAt bucket0 cnt v (dempty htl)) = (dempty htl)) on cnt {
+                              zero   => (!chain [(insertNAt bucket0 zero v (dempty htl)) = (dempty htl) [insertNAt_axioms]])
+                            | (S k') => (!chain [(insertNAt bucket0 (S k') v (dempty htl)) = (dempty htl) [insertNAt_axioms]])
+                          } }
+                (!chain [ (hits bucket n (insertNAt bucket0 cnt v (dempty htl)))
+                        <==> (hits bucket n (dempty htl))                     [ins] ])
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall bucket0 cnt v bucket n .
+                            (hits bucket n (insertNAt bucket0 cnt v tail_dlls)) <==> (hits bucket n tail_dlls)) }
+            pick-any bucket0:N cnt:N v:'S bucket:N n:N
+                datatype-cases ((hits bucket n (insertNAt bucket0 cnt v (dlst lh lsts tail_dlls))) <==>
+                                (hits bucket n (dlst lh lsts tail_dlls))) on cnt {
+                    zero =>
+                        (!chain [ (hits bucket n (insertNAt bucket0 zero v (dlst lh lsts tail_dlls)))
+                                <==> (hits bucket n (dlst lh lsts tail_dlls))         [insertNAt_axioms] ])
+                  | (S k') =>
+                        datatype-cases ((hits bucket n (insertNAt bucket0 (S k') v (dlst lh lsts tail_dlls))) <==>
+                                        (hits bucket n (dlst lh lsts tail_dlls))) on bucket0 {
+                            zero =>
+                                let { xt  := (insertNAt zero k' v tail_dlls);
+                                      tl_eq := pick-any bucket:N n:N (!uspec* IH [zero k' v bucket n]);
+                                      hl  := (!mp (!uspec* hits_cons [lh (lst v lsts) lsts xt tail_dlls]) tl_eq) }
+                                (!chain [ (hits bucket n (insertNAt zero (S k') v (dlst lh lsts tail_dlls)))
+                                        <==> (hits bucket n (dlst lh (lst v lsts) xt))   [insertNAt_axioms]
+                                        <==> (hits bucket n (dlst lh lsts tail_dlls))    [hl] ])
+                          | (S b0') =>
+                                let { xt  := (insertNAt b0' (S k') v tail_dlls);
+                                      tl_eq := pick-any bucket:N n:N (!uspec* IH [b0' (S k') v bucket n]);
+                                      hl  := (!mp (!uspec* hits_cons [lh lsts lsts xt tail_dlls]) tl_eq) }
+                                (!chain [ (hits bucket n (insertNAt (S b0') (S k') v (dlst lh lsts tail_dlls)))
+                                        <==> (hits bucket n (dlst lh lsts xt))           [insertNAt_axioms]
+                                        <==> (hits bucket n (dlst lh lsts tail_dlls))    [hl] ])
+                        }
+                }
+    }
+
+    ### drop: the suffix of a bucket list after pos buckets.
+    declare drop : (S) [N (DLst (Lst S))] -> (DLst (Lst S))
+    assert drop_axioms := (fun [
+        (drop zero dlls) = dlls
+        (drop (S pos) (dempty htl)) = (dempty htl)
+        (drop (S pos) (dlst lh lsts tail_dlls)) = (drop pos tail_dlls)
+    ])
+
+    # hits at position pos is hits at position zero of the suffix (PROVEN).
+    define hits_drop :=
+        (forall dlls pos n . (hits pos n dlls) <==> (hits zero n (drop pos dlls)))
+    by-induction hits_drop {
+        (dempty htl:Location) =>
+            pick-any pos:N n:N
+                datatype-cases ((hits pos n (dempty htl)) <==> (hits zero n (drop pos (dempty htl)))) on pos {
+                    zero =>
+                        (!chain [ (hits zero n (dempty htl))
+                                <==> (hits zero n (drop zero (dempty htl)))    [drop_axioms] ])
+                  | (S p') =>
+                        datatype-cases ((hits (S p') n (dempty htl)) <==>
+                                        (hits zero n (drop (S p') (dempty htl)))) on n {
+                            zero =>
+                                (!chain [ (hits (S p') zero (dempty htl))
+                                        <==> false                                    [hits_axioms]
+                                        <==> (hits zero zero (dempty htl))            [hits_axioms]
+                                        <==> (hits zero zero (drop (S p') (dempty htl))) [drop_axioms] ])
+                          | (S m') =>
+                                (!chain [ (hits (S p') (S m') (dempty htl))
+                                        <==> false                                       [hits_axioms]
+                                        <==> (hits zero (S m') (dempty htl))             [hits_axioms]
+                                        <==> (hits zero (S m') (drop (S p') (dempty htl))) [drop_axioms] ])
+                        }
+                }
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall pos n . (hits pos n tail_dlls) <==> (hits zero n (drop pos tail_dlls))) }
+            pick-any pos:N n:N
+                datatype-cases ((hits pos n (dlst lh lsts tail_dlls)) <==>
+                                (hits zero n (drop pos (dlst lh lsts tail_dlls)))) on pos {
+                    zero =>
+                        (!chain [ (hits zero n (dlst lh lsts tail_dlls))
+                                <==> (hits zero n (drop zero (dlst lh lsts tail_dlls)))  [drop_axioms] ])
+                  | (S p') =>
+                        datatype-cases ((hits (S p') n (dlst lh lsts tail_dlls)) <==>
+                                        (hits zero n (drop (S p') (dlst lh lsts tail_dlls)))) on n {
+                            zero =>
+                                (!chain [ (hits (S p') zero (dlst lh lsts tail_dlls))
+                                        <==> false                                              [hits_axioms]
+                                        <==> (hits zero zero (drop p' tail_dlls))               [hits_axioms]
+                                        <==> (hits zero zero (drop (S p') (dlst lh lsts tail_dlls))) [drop_axioms] ])
+                          | (S m') =>
+                                (!chain [ (hits (S p') (S m') (dlst lh lsts tail_dlls))
+                                        <==> (hits p' (S m') tail_dlls)                          [hits_axioms]
+                                        <==> (hits zero (S m') (drop p' tail_dlls))              [IH]
+                                        <==> (hits zero (S m') (drop (S p') (dlst lh lsts tail_dlls))) [drop_axioms] ])
+                        }
+                }
+    }
+
+    # countWraps at position pos is countWraps at position zero of the suffix (PROVEN).
+    define countWraps_drop :=
+        (forall dlls pos n . (countWraps pos n dlls) = (countWraps zero n (drop pos dlls)))
+    by-induction countWraps_drop {
+        (dempty htl:Location) =>
+            pick-any pos:N n:N
+                datatype-cases ((countWraps pos n (dempty htl)) = (countWraps zero n (drop pos (dempty htl)))) on pos {
+                    zero =>
+                        (!chain [ (countWraps zero n (dempty htl))
+                                = (countWraps zero n (drop zero (dempty htl)))    [drop_axioms] ])
+                  | (S p') =>
+                        datatype-cases ((countWraps (S p') n (dempty htl)) =
+                                        (countWraps zero n (drop (S p') (dempty htl)))) on n {
+                            zero =>
+                                (!chain [ (countWraps (S p') zero (dempty htl))
+                                        = zero                                          [countWraps_axioms]
+                                        = (countWraps zero zero (drop (S p') (dempty htl))) [countWraps_axioms] ])
+                          | (S m') =>
+                                (!chain [ (countWraps (S p') (S m') (dempty htl))
+                                        = (S m')                                          [countWraps_axioms]
+                                        = (countWraps zero (S m') (dempty htl))           [countWraps_axioms]
+                                        = (countWraps zero (S m') (drop (S p') (dempty htl))) [drop_axioms] ])
+                        }
+                }
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall pos n . (countWraps pos n tail_dlls) = (countWraps zero n (drop pos tail_dlls))) }
+            pick-any pos:N n:N
+                datatype-cases ((countWraps pos n (dlst lh lsts tail_dlls)) =
+                                (countWraps zero n (drop pos (dlst lh lsts tail_dlls)))) on pos {
+                    zero =>
+                        (!chain [ (countWraps zero n (dlst lh lsts tail_dlls))
+                                = (countWraps zero n (drop zero (dlst lh lsts tail_dlls)))  [drop_axioms] ])
+                  | (S p') =>
+                        datatype-cases ((countWraps (S p') n (dlst lh lsts tail_dlls)) =
+                                        (countWraps zero n (drop (S p') (dlst lh lsts tail_dlls)))) on n {
+                            zero =>
+                                (!chain [ (countWraps (S p') zero (dlst lh lsts tail_dlls))
+                                        = zero                                                       [countWraps_axioms]
+                                        = (countWraps zero zero (drop (S p') (dlst lh lsts tail_dlls))) [countWraps_axioms] ])
+                          | (S m') =>
+                                (!chain [ (countWraps (S p') (S m') (dlst lh lsts tail_dlls))
+                                        = (countWraps p' (S m') tail_dlls)                           [countWraps_axioms]
+                                        = (countWraps zero (S m') (drop p' tail_dlls))               [IH]
+                                        = (countWraps zero (S m') (drop (S p') (dlst lh lsts tail_dlls))) [drop_axioms] ])
+                        }
+                }
+    }
+
+    # The suffix after a non-empty suffix is its tail (PROVEN).
+    define drop_dempty :=
+        (forall pos htl . (drop pos (dempty htl)) = (dempty htl))
+    conclude drop_dempty
+        pick-any pos:N htl:Location
+            datatype-cases ((drop pos (dempty htl)) = (dempty htl)) on pos {
+                zero   => (!chain [(drop zero (dempty htl)) = (dempty htl) [drop_axioms]])
+              | (S p') => (!chain [(drop (S p') (dempty htl)) = (dempty htl) [drop_axioms]])
+            }
+
+    define [lh9 lsts9 tl9] := [?lh9:Location ?lsts9:(Lst 'S) ?tl9:(DLst (Lst 'S))]
+
+    define drop_step :=
+        (forall dlls pos lh9 lsts9 tl9 .
+            ((drop pos dlls) = (dlst lh9 lsts9 tl9)) ==> ((drop (S pos) dlls) = tl9))
+    by-induction drop_step {
+        (dempty htl:Location) =>
+            pick-any pos:N lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                assume hyp := ((drop pos (dempty htl)) = (dlst lh9 lsts9 tl9))
+                    let { e  := (!chain [ (dempty htl) = (drop pos (dempty htl)) [drop_dempty]
+                                                       = (dlst lh9 lsts9 tl9)  [hyp] ]);
+                          nc := (!uspec* dlst-no-conf [htl lh9 lsts9 tl9]) }
+                    (!from-complements ((drop (S pos) (dempty htl)) = tl9) e nc)
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall pos lh9 lsts9 tl9 .
+                            ((drop pos tail_dlls) = (dlst lh9 lsts9 tl9)) ==> ((drop (S pos) tail_dlls) = tl9)) }
+            pick-any pos:N lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                datatype-cases (((drop pos (dlst lh lsts tail_dlls)) = (dlst lh9 lsts9 tl9)) ==>
+                                ((drop (S pos) (dlst lh lsts tail_dlls)) = tl9)) on pos {
+                    zero =>
+                        assume hyp := ((drop zero (dlst lh lsts tail_dlls)) = (dlst lh9 lsts9 tl9))
+                            let { teq := (!chain [ tail_dlls
+                                                 = (vTail (dlst lh lsts tail_dlls))                 [DLst.dlst-vTail]
+                                                 = (vTail (drop zero (dlst lh lsts tail_dlls)))     [drop_axioms]
+                                                 = (vTail (dlst lh9 lsts9 tl9))                     [hyp]
+                                                 = tl9                                              [DLst.dlst-vTail] ]) }
+                            (!chain [ (drop (S zero) (dlst lh lsts tail_dlls))
+                                    = (drop zero tail_dlls)       [drop_axioms]
+                                    = tail_dlls                   [drop_axioms]
+                                    = tl9                         [teq] ])
+                  | (S p') =>
+                        assume hyp := ((drop (S p') (dlst lh lsts tail_dlls)) = (dlst lh9 lsts9 tl9))
+                            let { h2 := (!chain [ (drop p' tail_dlls)
+                                                = (drop (S p') (dlst lh lsts tail_dlls))   [drop_axioms]
+                                                = (dlst lh9 lsts9 tl9)                     [hyp] ]);
+                                  ih := (!mp (!uspec* IH [p' lh9 lsts9 tl9]) h2) }
+                            (!chain [ (drop (S (S p')) (dlst lh lsts tail_dlls))
+                                    = (drop (S p') tail_dlls)     [drop_axioms]
+                                    = tl9                         [ih] ])
+                }
+    }
+
+    ### Read side. setA window that available_key accepts at bucket zero of a
+    ### suffix dlls contains an alive bucket among the (S rv) positions that an
+    ### insertion writes from there: the part inside dlls, or the wrapped part
+    ### at the front of o_dlls.
+    define ak_hits_wrap :=
+        (forall rv .
+            (forall lh lsts tail_dlls o_dlls .
+                ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                 (available_key zero rv (dlst lh lsts tail_dlls) o_dlls)) ==>
+                ((hits zero (S rv) (dlst lh lsts tail_dlls)) |
+                 (hits zero (countWraps zero (S rv) (dlst lh lsts tail_dlls)) o_dlls)))
+            ==>
+            (forall htl o_dlls .
+                ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                 (available_key zero rv (dempty htl) o_dlls)) ==>
+                ((hits zero (S rv) (dempty htl)) |
+                 (hits zero (countWraps zero (S rv) (dempty htl)) o_dlls))))
+    conclude ak_hits_wrap
+        pick-any rv:N
+            assume dc := (forall lh lsts tail_dlls o_dlls .
+                            ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                             (available_key zero rv (dlst lh lsts tail_dlls) o_dlls)) ==>
+                            ((hits zero (S rv) (dlst lh lsts tail_dlls)) |
+                             (hits zero (countWraps zero (S rv) (dlst lh lsts tail_dlls)) o_dlls)))
+                pick-any htl:Location o_dlls:(DLst (Lst 'S))
+                    assume hyp := ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                   (available_key zero rv (dempty htl) o_dlls))
+                        let { ex := (!left-and hyp);
+                              ak := (!right-and hyp) }
+                        pick-witnesses w1 w2 w3 for ex oeq
+                            let { ak2 := (!chain-> [ ak
+                                            ==> (available_key zero rv (dempty htl) (dlst w1 w2 w3))     [oeq]
+                                            ==> (available_key zero rv (dlst w1 w2 w3) (dlst w1 w2 w3))  [available_key_axioms] ]);
+                                  _   := (!reflex (dlst w1 w2 w3));
+                                  ex2 := (!egen* (exists olh olsts otail_dlls .
+                                                    (dlst w1 w2 w3) = (dlst olh olsts otail_dlls))
+                                                 [w1 w2 w3]);
+                                  r   := (!mp (!uspec* dc [w1 w2 w3 (dlst w1 w2 w3)]) (!both ex2 ak2));
+                                  oeqs := (!sym oeq);
+                                  r2  := (!chain-> [ r
+                                            ==> ((hits zero (S rv) o_dlls) |
+                                                 (hits zero (countWraps zero (S rv) o_dlls) o_dlls))  [oeqs] ]);
+                                  hs  := (!cases r2
+                                            assume a := (hits zero (S rv) o_dlls) (!claim a)
+                                            assume b := (hits zero (countWraps zero (S rv) o_dlls) o_dlls)
+                                                (!mp (!uspec* hits_countWraps [o_dlls (S rv) o_dlls]) b));
+                                  cw  := (!chain [ (countWraps zero (S rv) (dempty htl)) = (S rv) [countWraps_axioms] ]);
+                                  hs2 := (!chain-> [ hs ==> (hits zero (countWraps zero (S rv) (dempty htl)) o_dlls) [cw] ]) }
+                            (!either (hits zero (S rv) (dempty htl)) hs2)
+
+    define ak_hits :=
+        (forall rv dlls o_dlls .
+            ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+             (available_key zero rv dlls o_dlls)) ==>
+            ((hits zero (S rv) dlls) | (hits zero (countWraps zero (S rv) dlls) o_dlls)))
+    by-induction ak_hits {
+        zero =>
+            let { dc := pick-any lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S)) o_dlls:(DLst (Lst 'S))
+                          assume hyp := ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                         (available_key zero zero (dlst lh lsts tail_dlls) o_dlls))
+                              (!chain-> [ (!right-and hyp)
+                                  ==> (Location.alive lh)                                        [available_key_axioms]
+                                  ==> ((Location.alive lh) | (hits zero zero tail_dlls))         [alternate]
+                                  ==> (hits zero (S zero) (dlst lh lsts tail_dlls))              [hits_axioms]
+                                  ==> ((hits zero (S zero) (dlst lh lsts tail_dlls)) |
+                                       (hits zero (countWraps zero (S zero) (dlst lh lsts tail_dlls)) o_dlls)) [alternate] ]);
+                  de := (!mp (!uspec ak_hits_wrap zero) dc) }
+            pick-any dlls:(DLst (Lst 'S)) o_dlls:(DLst (Lst 'S))
+                datatype-cases (((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                 (available_key zero zero dlls o_dlls)) ==>
+                                ((hits zero (S zero) dlls) | (hits zero (countWraps zero (S zero) dlls) o_dlls)))
+                on dlls {
+                    (dempty eh:Location) => (!uspec* de [eh o_dlls])
+                  | (dlst dla:Location dlb:(Lst 'S) dlc:(DLst (Lst 'S))) => (!uspec* dc [dla dlb dlc o_dlls])
+                }
+      | (S r) =>
+            let { IH := (forall dlls o_dlls .
+                            ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                             (available_key zero r dlls o_dlls)) ==>
+                            ((hits zero (S r) dlls) | (hits zero (countWraps zero (S r) dlls) o_dlls)));
+                  dc := pick-any lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S)) o_dlls:(DLst (Lst 'S))
+                          assume hyp := ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                         (available_key zero (S r) (dlst lh lsts tail_dlls) o_dlls))
+                            let { ak := (!right-and hyp) }
+                            (!two-cases
+                                assume alv := (Location.alive lh)
+                                    (!chain-> [ alv
+                                        ==> ((Location.alive lh) | (hits zero (S r) tail_dlls))   [alternate]
+                                        ==> (hits zero (S (S r)) (dlst lh lsts tail_dlls))        [hits_axioms]
+                                        ==> ((hits zero (S (S r)) (dlst lh lsts tail_dlls)) |
+                                             (hits zero (countWraps zero (S (S r)) (dlst lh lsts tail_dlls)) o_dlls)) [alternate] ])
+                                assume nalv := (~ Location.alive lh)
+                                    let { ak2 := (!chain-> [ ak ==> (available_key zero r tail_dlls o_dlls) [available_key_axioms] ]);
+                                          ih  := (!mp (!uspec* IH [tail_dlls o_dlls]) (!both (!left-and hyp) ak2));
+                                          cw  := (!chain [ (countWraps zero (S (S r)) (dlst lh lsts tail_dlls))
+                                                         = (countWraps zero (S r) tail_dlls)   [countWraps_axioms] ]);
+                                          cws := (!sym cw) }
+                                    (!cases ih
+                                        assume a := (hits zero (S r) tail_dlls)
+                                            (!chain-> [ a
+                                                ==> ((Location.alive lh) | (hits zero (S r) tail_dlls))   [alternate]
+                                                ==> (hits zero (S (S r)) (dlst lh lsts tail_dlls))        [hits_axioms]
+                                                ==> ((hits zero (S (S r)) (dlst lh lsts tail_dlls)) |
+                                                     (hits zero (countWraps zero (S (S r)) (dlst lh lsts tail_dlls)) o_dlls)) [alternate] ])
+                                        assume b := (hits zero (countWraps zero (S r) tail_dlls) o_dlls)
+                                            let { b2 := (!chain-> [ b ==> (hits zero (countWraps zero (S (S r)) (dlst lh lsts tail_dlls)) o_dlls) [cws] ]) }
+                                            (!either (hits zero (S (S r)) (dlst lh lsts tail_dlls)) b2)));
+                  de := (!mp (!uspec ak_hits_wrap (S r)) dc) }
+            pick-any dlls:(DLst (Lst 'S)) o_dlls:(DLst (Lst 'S))
+                datatype-cases (((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                 (available_key zero (S r) dlls o_dlls)) ==>
+                                ((hits zero (S (S r)) dlls) | (hits zero (countWraps zero (S (S r)) dlls) o_dlls)))
+                on dlls {
+                    (dempty eh:Location) => (!uspec* de [eh o_dlls])
+                  | (dlst dla:Location dlb:(Lst 'S) dlc:(DLst (Lst 'S))) => (!uspec* dc [dla dlb dlc o_dlls])
+                }
+    }
+
+    ### Lifting ak_hits from bucket zero to any bucket index: available_key
+    ### and bucketIndex walk the bucket index in lock step.
+    # Reduction of the `dempty` suffix case to the `dlst` case at position
+    # zero. setA method rather than a stated lemma: it is applied once per case of
+    # the induction below, to the `dlst`-case sentence `dc` proven there.
+    define ak_hits_gen_wrap :=
+        method (bucket dc)
+                pick-any pos:N rv:N o_dlls:(DLst (Lst 'S))
+                    assume hyp := ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) & (available_key bucket rv (drop pos o_dlls) o_dlls))
+                        let { ex := (!left-and hyp);
+                              ak := (!right-and hyp) }
+                        (!cases (!uspec dlst-no-junk (drop pos o_dlls))
+                            assume is_empty := (exists htl . (drop pos o_dlls) = (dempty htl))
+                                pick-witness wh for is_empty weq
+                                pick-witnesses ow1 ow2 ow3 for ex oeq
+                                    let { oeqs := (!sym oeq);
+                                          ak1 := (!chain-> [ ak
+                                                    ==> (available_key bucket rv (dempty wh) o_dlls)               [weq]
+                                                    ==> (available_key bucket rv (dempty wh) (dlst ow1 ow2 ow3))   [oeq]
+                                                    ==> (available_key bucket rv (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3)) [available_key_axioms] ]);
+                                          bi  := (!chain [ (bucketIndex bucket (drop pos o_dlls) o_dlls pos)
+                                                         = (bucketIndex bucket (dempty wh) o_dlls pos)                 [weq]
+                                                         = (bucketIndex bucket (dempty wh) (dlst ow1 ow2 ow3) pos)     [oeq]
+                                                         = (bucketIndex bucket (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3) zero) [bucketIndex_axioms] ]);
+                                          dq0 := (!chain [ (drop zero (dlst ow1 ow2 ow3)) = (dlst ow1 ow2 ow3) [drop_axioms] ]);
+                                          _   := (!reflex (dlst ow1 ow2 ow3));
+                                          ex0 := (!egen* (exists olh olsts otail_dlls .
+                                                            (dlst ow1 ow2 ow3) = (dlst olh olsts otail_dlls))
+                                                         [ow1 ow2 ow3]);
+                                          r0  := (!mp (!uspec* dc [zero rv (dlst ow1 ow2 ow3) ow1 ow2 ow3])
+                                                      (!both dq0 (!both ex0 ak1))) }
+                                    (!chain-> [ r0
+                                        ==> ((hits (bucketIndex bucket (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3) zero) (S rv) o_dlls) |
+                                             (hits zero (countWraps (bucketIndex bucket (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3) zero) (S rv) o_dlls) o_dlls))
+                                                                                                          [oeqs]
+                                        ==> ((hits (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) o_dlls))                          [bi] ])
+                            assume is_dlst := (exists lh lsts tail_dlls . (drop pos o_dlls) = (dlst lh lsts tail_dlls))
+                                pick-witnesses w1 w2 w3 for is_dlst weq
+                                    let { akw := (!chain-> [ ak ==> (available_key bucket rv (dlst w1 w2 w3) o_dlls) [weq] ]);
+                                          r   := (!mp (!uspec* dc [pos rv o_dlls w1 w2 w3]) (!both weq (!both ex akw))) }
+                                    (!chain-> [ r ==> ((hits (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) o_dlls)) [weq] ]))
+
+    define ak_hits_gen :=
+        (forall bucket pos rv o_dlls .
+            ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) & (available_key bucket rv (drop pos o_dlls) o_dlls)) ==>
+            ((hits (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex bucket (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) o_dlls)))
+    by-induction ak_hits_gen {
+        zero =>
+            let { dc := pick-any pos:N rv:N o_dlls:(DLst (Lst 'S)) lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                          assume hyp := (((drop pos o_dlls) = (dlst lh9 lsts9 tl9)) & (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                         (available_key zero rv (dlst lh9 lsts9 tl9) o_dlls))
+                            let { dq := (!left-and hyp);
+                                  ex := (!left-and (!right-and hyp));
+                                  ak := (!right-and (!right-and hyp));
+                                  akd := (!chain-> [ ak ==> (available_key zero rv (drop pos o_dlls) o_dlls) [dq] ]);
+                                  e  := (!mp (!uspec* ak_hits [rv (drop pos o_dlls) o_dlls]) (!both ex akd));
+                                  h1 := (!uspec* hits_drop [o_dlls pos (S rv)]);
+                                  c1 := (!uspec* countWraps_drop [o_dlls pos (S rv)]);
+                                  bi := (!chain [ (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) = pos [bucketIndex_axioms] ]) }
+                            (!cases e
+                                assume a := (hits zero (S rv) (drop pos o_dlls))
+                                    (!chain-> [ a
+                                        ==> (hits pos (S rv) o_dlls)                                      [h1]
+                                        ==> (hits (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) [bi]
+                                        ==> ((hits (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) o_dlls))                    [alternate] ])
+                                assume bx := (hits zero (countWraps zero (S rv) (drop pos o_dlls)) o_dlls)
+                                    let { b2 := (!chain-> [ bx
+                                            ==> (hits zero (countWraps pos (S rv) o_dlls) o_dlls)          [c1]
+                                            ==> (hits zero (countWraps (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) o_dlls) [bi] ]) }
+                                    (!either (hits (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) b2)) }
+            (!ak_hits_gen_wrap zero dc)
+      | (S bx) =>
+            let { IH := (forall pos rv o_dlls .
+                            ((exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) & (available_key bx rv (drop pos o_dlls) o_dlls)) ==>
+                            ((hits (bucketIndex bx (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex bx (drop pos o_dlls) o_dlls pos) (S rv) o_dlls) o_dlls)));
+                  dc := pick-any pos:N rv:N o_dlls:(DLst (Lst 'S)) lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                          assume hyp := (((drop pos o_dlls) = (dlst lh9 lsts9 tl9)) & (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) &
+                                         (available_key (S bx) rv (dlst lh9 lsts9 tl9) o_dlls))
+                            let { dq := (!left-and hyp);
+                                  ex := (!left-and (!right-and hyp));
+                                  ak := (!right-and (!right-and hyp));
+                                  ds := (!mp (!uspec* drop_step [o_dlls pos lh9 lsts9 tl9]) dq);
+                                  ak3 := (!chain-> [ ak
+                                            ==> (available_key bx rv tl9 o_dlls)                [available_key_axioms]
+                                            ==> (available_key bx rv (drop (S pos) o_dlls) o_dlls) [ds] ]);
+                                  r  := (!mp (!uspec* IH [(S pos) rv o_dlls]) (!both ex ak3));
+                                  bi := (!chain [ (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos)
+                                                = (bucketIndex bx tl9 o_dlls (S pos))                 [bucketIndex_axioms]
+                                                = (bucketIndex bx (drop (S pos) o_dlls) o_dlls (S pos)) [ds] ]) }
+                            (!chain-> [ r ==> ((hits (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) |
+                 (hits zero (countWraps (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos) (S rv) o_dlls) o_dlls)) [bi] ]) }
+            (!ak_hits_gen_wrap (S bx) dc)
+    }
+
+    # The window that available_key accepts contains an alive bucket that
+    # insertDPrList writes (PROVEN).
+    define ak_hits_insert :=
+        (forall bucket rv dlls .
+            (available_key bucket rv dlls dlls) ==>
+            ((hits (bucketIndex bucket dlls dlls zero) (S rv) dlls) |
+             (hits zero (countWraps (bucketIndex bucket dlls dlls zero) (S rv) dlls) dlls)))
+    conclude ak_hits_insert
+        pick-any bucket:N rv:N dlls:(DLst (Lst 'S))
+            assume ak := (available_key bucket rv dlls dlls)
+                (!cases (!uspec dlst-no-junk dlls)
+                    assume is_empty := (exists htl . dlls = (dempty htl))
+                        pick-witness wh for is_empty weq
+                            let { _ := (!chain-> [ ak
+                                        ==> (available_key bucket rv (dempty wh) (dempty wh)) [weq]
+                                        ==> false                                             [available_key_axioms] ]) }
+                            (!from-false ((hits (bucketIndex bucket dlls dlls zero) (S rv) dlls) |
+                                          (hits zero (countWraps (bucketIndex bucket dlls dlls zero) (S rv) dlls) dlls)))
+                    assume is_dlst := (exists lh lsts tail_dlls . dlls = (dlst lh lsts tail_dlls))
+                        let { ak0 := (!chain-> [ ak ==> (available_key bucket rv (drop zero dlls) dlls) [drop_axioms] ]);
+                              r   := (!mp (!uspec* ak_hits_gen [bucket zero rv dlls]) (!both is_dlst ak0)) }
+                        (!chain-> [ r
+                            ==> ((hits (bucketIndex bucket dlls dlls zero) (S rv) dlls) |
+                                 (hits zero (countWraps (bucketIndex bucket dlls dlls zero) (S rv) dlls) dlls)) [drop_axioms] ]))
+
     define values_after_insert :=
         (forall bucket rv v0 dlls s0 .
             (((available_key bucket rv dlls dlls) &
-              ((values dlls Set.null true) = (SOME s0))) ==>
-             ((values (insertDPrList bucket rv v0 dlls) Set.null true) = (SOME (Set.insert v0 s0)))))
-    assert values_after_insert
+              ((values dlls) = (SOME s0))) ==>
+             ((values (insertDPrList bucket rv v0 dlls)) = (SOME (Set.insert v0 s0)))))
+    conclude values_after_insert
+        pick-any bucket:N rv:N v0:'S dlls:(DLst (Lst 'S)) s0:(Set.Set 'S)
+            assume hyp := ((available_key bucket rv dlls dlls) & ((values dlls) = (SOME s0)))
+                let { ak  := (!left-and hyp);
+                      hv  := (!right-and hyp);
+                      idx := (bucketIndex bucket dlls dlls zero);
+                      w   := (countWraps idx (S rv) dlls);
+                      d1  := (insertNAt idx (S rv) v0 dlls);
+                      c   := (!mp (!uspec* ak_hits_insert [bucket rv dlls]) ak);
+                      b1  := (!mp (!uspec* values_insertNAt [dlls idx (S rv) v0 s0]) hv);
+                      ins := (!chain [ (insertDPrList bucket rv v0 dlls) = (insertNAt zero w v0 d1) [insertDPrList_axioms] ]) }
+                (!two-cases
+                    assume h1 := (hits idx (S rv) dlls)
+                        let { d1v := (!mp (!left-and b1) h1);
+                              b2  := (!mp (!uspec* values_insertNAt [d1 zero w v0 (insert v0 s0)]) d1v) }
+                        (!two-cases
+                            assume h2 := (hits zero w d1)
+                                let { r2 := (!mp (!left-and b2) h2) }
+                                (!chain [ (values (insertDPrList bucket rv v0 dlls))
+                                        = (values (insertNAt zero w v0 d1))        [ins]
+                                        = (SOME (insert v0 (insert v0 s0)))        [r2]
+                                        = (SOME (insert v0 s0))                    [insert_idem] ])
+                            assume nh2 := (~ hits zero w d1)
+                                let { r2 := (!mp (!right-and b2) nh2) }
+                                (!chain [ (values (insertDPrList bucket rv v0 dlls))
+                                        = (values (insertNAt zero w v0 d1))        [ins]
+                                        = (SOME (insert v0 s0))                    [r2] ]))
+                    assume nh1 := (~ hits idx (S rv) dlls)
+                        let { hw   := (!dsyl c nh1);
+                              hiff := (!uspec* hits_insertNAt [dlls idx (S rv) v0 zero w]);
+                              hd1  := (!mp (!right-iff hiff) hw);
+                              d1v  := (!mp (!right-and b1) nh1);
+                              b2   := (!mp (!uspec* values_insertNAt [d1 zero w v0 s0]) d1v);
+                              r2   := (!mp (!left-and b2) hd1) }
+                        (!chain [ (values (insertDPrList bucket rv v0 dlls))
+                                = (values (insertNAt zero w v0 d1))        [ins]
+                                = (SOME (insert v0 s0))                    [r2] ]))
 
 }
 
