@@ -275,11 +275,13 @@ conclude avgTemp_replica_agreement
 
 # Metadata availability -- instance of DHTable.dht_replication_correctness at
 # the metadata DHT configuration (hash metaHF, replication 1, location home):
-# if no window of two consecutive buckets is entirely dead, every table built
-# from that configuration is available.
+# if the table location home is alive and no window of two consecutive
+# buckets is entirely dead, every table built from that configuration is
+# available.
 define metadata_available :=
     (forall ?dht:(DHTable SensorID) ?dlls:(DLst (Lst SensorID)) .
         (((DHTable.rep ?dht) = (dhtr metaHF (S zero) home ?dlls)) &
+         (alive home) &
          (exists ?lh:Location ?lsts:(Lst SensorID) ?tl:(DLst (Lst SensorID)) .
               ?dlls = (dlst ?lh ?lsts ?tl)) &
          (DL_L_S.no_consecutive_failures (S zero) ?dlls ?dlls))
@@ -288,6 +290,7 @@ define metadata_available :=
 conclude metadata_available
   pick-any dht:(DHTable SensorID) dlls:(DLst (Lst SensorID))
     assume hyp := (((DHTable.rep dht) = (dhtr metaHF (S zero) home dlls)) &
+                   (alive home) &
                    (exists ?lh:Location ?lsts:(Lst SensorID) ?tl:(DLst (Lst SensorID)) .
                         dlls = (dlst ?lh ?lsts ?tl)) &
                    (DL_L_S.no_consecutive_failures (S zero) dlls dlls))
@@ -295,30 +298,36 @@ conclude metadata_available
 
 
 # Sensor count over the metadata DHT -- composes the DHT `values` destructor
-# with the typeCount service. `values` always returns (SOME s) on a DHT
-# (DL_L_S.values_true_some), and the typeCount replica pair returns
+# with the typeCount service. On an available table `values` returns
+# (SOME s): the table location is alive (DHTable.available_alive), the bucket
+# list ends at it (DHTable.rep_end), so the walk completes
+# (DL_L_S.values_end_alive). The typeCount replica pair returns
 # (SOME (typeCount at s)) whenever one of its locations is alive. By
-# values_functional_correctness, s is the set of stored sensor IDs when the
-# table is available, which metadata_available derives from the replication
-# invariant.
+# values_functional_correctness, s is the set of stored sensor IDs, and
+# metadata_available derives availability from the replication invariant.
 define typeCount_on_metadata :=
     (forall ?dht:(DHTable SensorID) .
-        ((alive cntL0) | (alive cntL1))
+        ((DHTable.available ?dht) & ((alive cntL0) | (alive cntL1)))
         ==> (exists ?s:(Set.Set SensorID) .
                 (((DHTable.values ?dht) = (SOME ?s)) &
                  ((typeCountSvc at ?s) = (SOME (typeCount at ?s))))))
 
 conclude typeCount_on_metadata
   pick-any dht:(DHTable SensorID)
-    assume ca := ((alive cntL0) | (alive cntL1))
-      let {r := (!uspec DHTable.rep_e dht)}
+    assume hyp := ((DHTable.available dht) & ((alive cntL0) | (alive cntL1)))
+      let {av := (!left-and hyp);
+           ca := (!right-and hyp);
+           r  := (!uspec DHTable.rep_e dht)}
       pick-witnesses hf rv htl dlls for r rdef
-        let {ts := (!uspec* DL_L_S.values_true_some [dlls Set.null:(Set.Set SensorID)])}
+        let {alv    := (!mp (!uspec* DHTable.available_alive [dht hf rv htl dlls]) (!both rdef av));
+             end_eq := (!sym (!mp (!uspec* DHTable.rep_end [dht hf rv htl dlls]) rdef));
+             alv_e  := (!chain-> [alv ==> (alive (DL_L_S.dlls_end dlls)) [end_eq]]);
+             ts     := (!mp (!uspec DL_L_S.values_end_alive dlls) alv_e)}
         pick-witness s for ts sdef
           let {v  := (!chain [(DHTable.values dht)
                               = (DHTable.values_aux (DHTable.rep dht))     [DHTable.values_axiom]
                               = (DHTable.values_aux (dhtr hf rv htl dlls)) [rdef]
-                              = (DL_L_S.values dlls Set.null true)         [DHTable.values_aux_axioms]
+                              = (DL_L_S.values dlls)                       [DHTable.values_aux_axioms]
                               = (SOME s)                                   [sdef]]);
                ap := (!mp (!uspec* DFunction.fault_tolerance_correctness [s typeCount cntL0 cntL1]) ca);
                _  := (!both v ap)}
