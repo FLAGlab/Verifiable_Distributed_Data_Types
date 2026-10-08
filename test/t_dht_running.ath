@@ -1,0 +1,130 @@
+### t_dht_running.ath (paper Section 3.4, a running example of the DHT proofs)
+###
+### Ring of three buckets at L U L (the middle one dead), replication value
+### rv = 1, identity hash on N, table location L. Insert 1, then 4, then 2.
+###   * 1 hashes to bucket 1, which is dead. Its window {1, 2} still has the
+###     alive bucket 2.
+###   * 4 hashes past the end of the ring. bucketIndex reduces it to bucket 1,
+###     so 4 collides with 1.
+###   * 2 hashes to bucket 2, and its window {2, 0} wraps around.
+###
+### What the test checks.
+###   1. The replication hypothesis holds on the ring (Vampire), so
+###      dht_replication_correctness makes every table of the run available
+###      (Athena-checked).
+###   2. query, by walking query_fc_insert down the inserts: the inserted keys
+###      (1, 4, 2) answer true, the keys never inserted (3, 5) answer false.
+###      Key 3 hashes to bucket 0 and key 5 to bucket 2 (Vampire combines the
+###      Athena-checked theorem instances).
+###   3. values returns the set {1, 4, 2}.
+###   4. dht_functional_correctness applies to the final table (its
+###      hypotheses are satisfiable, so it is not vacuous).
+
+load "common"
+
+module T_DHT_Running {
+
+    define hf   := Function.identity:(Function.fn N N)
+    define ll3  := (lst L (lst U (lst L empty:(Lst Location))))
+    define INIT := (dlst L empty:(Lst N) (dlst U empty:(Lst N) (dlst L empty:(Lst N) (dempty L))))
+
+    define e  := (dht_empty ll3 hf one L)
+    define d1 := (dht_insert e one)
+    define d2 := (dht_insert d1 four)
+    define d3 := (dht_insert d2 two)
+    define dl1 := (DL_L_S.insertDPrList (hf at one) one one INIT)
+    define dl2 := (DL_L_S.insertDPrList (hf at four) one four dl1)
+    define dl3 := (DL_L_S.insertDPrList (hf at two) one two dl2)
+
+    #--- Representations of the four tables.
+    define g0 := ((DL_L_S.initDPrList hf L ll3) = INIT)
+    (!vp g0 DL_L_S.initDPrList_axioms)
+    define r0 := ((DHTable.rep e) = (dhtr hf one L INIT))
+    (!vp r0 (join DHTable.rep_axioms [g0]))
+    define r1 := ((DHTable.rep d1) = (dhtr hf one L dl1))
+    (!vp r1 (join DHTable.rep_axioms [r0]))
+    define r2 := ((DHTable.rep d2) = (dhtr hf one L dl2))
+    (!vp r2 (join DHTable.rep_axioms [r1]))
+    define r3 := ((DHTable.rep d3) = (dhtr hf one L dl3))
+    (!vp r3 (join DHTable.rep_axioms [r2]))
+
+    #--- 1. Replication hypothesis and availability.
+    define ncf0 := (DL_L_S.no_consecutive_failures one INIT INIT)
+    (!vp ncf0 (join DL_L_S.no_consecutive_failures_axioms DL_L_S.available_key_axioms [aliveL deadU]))
+    define ncf1 := (!mp (!right-iff (!uspec* DHTable.no_consecutive_failures_insert_inv [(hf at one) one one INIT])) ncf0)
+    define ncf2 := (!mp (!right-iff (!uspec* DHTable.no_consecutive_failures_insert_inv [(hf at four) one four dl1])) ncf1)
+    define ncf3 := (!mp (!right-iff (!uspec* DHTable.no_consecutive_failures_insert_inv [(hf at two) one two dl2])) ncf2)
+
+    define locs0 := ((DL_L_S.dlls_locs INIT) = (lst L (lst U (lst L empty:(Lst Location)))))
+    (!vp locs0 DL_L_S.dlls_locs_axioms)
+    define pl1 := (!uspec* DL_L_S.insertDPrList_preserves_locs [(hf at one) one one INIT])
+    define pl2 := (!uspec* DL_L_S.insertDPrList_preserves_locs [(hf at four) one four dl1])
+    define pl3 := (!uspec* DL_L_S.insertDPrList_preserves_locs [(hf at two) one two dl2])
+    define lc1 := (!chain [ (DL_L_S.dlls_locs dl1) = (DL_L_S.dlls_locs INIT) [pl1]
+                                                   = (lst L (lst U (lst L empty:(Lst Location)))) [locs0] ])
+    define lc2 := (!chain [ (DL_L_S.dlls_locs dl2) = (DL_L_S.dlls_locs dl1) [pl2]
+                                                   = (lst L (lst U (lst L empty:(Lst Location)))) [lc1] ])
+    define lc3 := (!chain [ (DL_L_S.dlls_locs dl3) = (DL_L_S.dlls_locs dl2) [pl3]
+                                                   = (lst L (lst U (lst L empty:(Lst Location)))) [lc2] ])
+    define ne1 := (!mp (!uspec* DL_L_S.locs_lst_implies_dlst [dl1 L (lst U (lst L empty:(Lst Location)))]) lc1)
+    define ne2 := (!mp (!uspec* DL_L_S.locs_lst_implies_dlst [dl2 L (lst U (lst L empty:(Lst Location)))]) lc2)
+    define ne3 := (!mp (!uspec* DL_L_S.locs_lst_implies_dlst [dl3 L (lst U (lst L empty:(Lst Location)))]) lc3)
+
+    define av1 := (!mp (!uspec* DHTable.dht_replication_correctness [d1 hf one L dl1]) (!both r1 (!both aliveL (!both ne1 ncf1))))
+    define av2 := (!mp (!uspec* DHTable.dht_replication_correctness [d2 hf one L dl2]) (!both r2 (!both aliveL (!both ne2 ncf2))))
+    define av3 := (!mp (!uspec* DHTable.dht_replication_correctness [d3 hf one L dl3]) (!both r3 (!both aliveL (!both ne3 ncf3))))
+
+    #--- The window of a key is available on every table of the run: compute it
+    #--- on the initial bucket list, then carry it over the insertions.
+    define ak-run := method (k)
+        let { idk := (!uspec Function.identity-definition k);
+              a0  := (!vp (DL_L_S.available_key (hf at k) one INIT INIT)
+                          (join DL_L_S.available_key_axioms [idk aliveL deadU]));
+              a1  := (!mp (!right-iff (!uspec* DL_L_S.available_key_insert_invariant [(hf at one) one one INIT (hf at k) one])) a0);
+              a2  := (!mp (!right-iff (!uspec* DL_L_S.available_key_insert_invariant [(hf at four) one four dl1 (hf at k) one])) a1) }
+        (!both a1 (!both a2
+               (!mp (!right-iff (!uspec* DL_L_S.available_key_insert_invariant [(hf at two) one two dl2 (hf at k) one])) a2)))
+
+    #--- 2. query, walking query_fc_insert down the three insertions.
+    define q-run := method (k)
+        let { ak  := (!ak-run k);
+              ak1 := (!left-and ak);
+              ak2 := (!left-and (!right-and ak));
+              ak3 := (!right-and (!right-and ak));
+              q3  := (!mp (!uspec* DHTable.query_fc_insert [d2 two k hf one L dl3]) (!both r3 (!both av3 ak3)));
+              q2  := (!mp (!uspec* DHTable.query_fc_insert [d1 four k hf one L dl2]) (!both r2 (!both av2 ak2)));
+              q1  := (!mp (!uspec* DHTable.query_fc_insert [e one k hf one L dl1]) (!both r1 (!both av1 ak1)));
+              q0  := (!mp (!uspec* DHTable.query_fc_empty [ll3 hf one L k]) aliveL) }
+        (!both q3 (!both q2 (!both q1 q0)))
+
+    define facts := [(datatype-axioms "Option") (datatype-axioms "N") (datatype-axioms "Boolean")]
+
+    define run_one   := (!q-run one)
+    define run_four  := (!q-run four)
+    define run_two   := (!q-run two)
+    define run_three := (!q-run three)
+    define run_five  := (!q-run five)
+
+    define query_one   := ((DHTable.query d3 one)   = (SOME true))
+    (!vp query_one   (join facts [run_one]))
+    define query_four  := ((DHTable.query d3 four)  = (SOME true))
+    (!vp query_four  (join facts [run_four]))
+    define query_two   := ((DHTable.query d3 two)   = (SOME true))
+    (!vp query_two   (join facts [run_two]))
+    define query_three := ((DHTable.query d3 three) = (SOME false))
+    (!vp query_three (join facts [run_three]))
+    define query_five  := ((DHTable.query d3 five)  = (SOME false))
+    (!vp query_five  (join facts [run_five]))
+
+    #--- 3. values.
+    define v0 := (!mp (!uspec* DHTable.values_fc_empty [ll3 hf one L]) aliveL)
+    define v1 := (!mp (!uspec* DHTable.values_fc_insert [e one]) av1)
+    define v2 := (!mp (!uspec* DHTable.values_fc_insert [d1 four]) av2)
+    define v3 := (!mp (!uspec* DHTable.values_fc_insert [d2 two]) av3)
+    define values_d3 := ((DHTable.values d3) = (SOME (Set.insert two (Set.insert four (Set.insert one Set.null)))))
+    (!vp values_d3 [v0 v1 v2 v3 (datatype-axioms "Option")])
+
+    #--- 4. dht_functional_correctness applies to the final table.
+    define dfc_d3 := (!mp (!uspec* DHTable.dht_functional_correctness [d3 four hf one L dl3])
+                          (!both r3 (!both av3 (!right-and (!right-and (!ak-run four))))))
+}

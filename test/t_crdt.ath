@@ -1,0 +1,90 @@
+### t_crdt.ath (paper Section 3.5, the grow-only set CRDT)
+###
+### Messages carry natural numbers. m1 adds 1, m2 adds 2.
+###   1. Reordering and duplication: the mailboxes [m1, m2] and [m2, m1, m1]
+###      are add-only and contain the same messages, so eventual_consistency
+###      gives the same state from the same initial state (Athena-checked).
+###   2. The state holds exactly the added values: 1 and 2 are in it, 3 is not.
+###   3. Mailboxes with different messages give different states.
+###   4. Duplicates alone change nothing: [m1, m1] and [m1] converge.
+###   5. A message with another operation is not add-only, so the theorem does
+###      not apply. This is the restriction to the grow-only fragment stated
+###      in the paper's limitations. The operation `rem` is a fresh constant,
+###      distinct from `add`.
+###   6. Empty mailboxes: the state is the initial state.
+
+load "common"
+
+module T_CRDT {
+
+    define m1 := (msg CRDT.add one)
+    define m2 := (msg CRDT.add two)
+    define mbA := (lst m1 (lst m2 empty:(Lst (Msg N))))
+    define mbB := (lst m2 (lst m1 (lst m1 empty:(Lst (Msg N)))))
+    define mbC := (lst m1 empty:(Lst (Msg N)))
+    define mbD := (lst m1 (lst m1 empty:(Lst (Msg N))))
+    define null := Set.null:(Set.Set N)
+
+    define sets := (join Lst.toSet.toSet-axioms Set.in-def [Set.set-identity-characterization])
+
+    #--- 1. Reordering and duplication.
+    define addA := (CRDT.addOnly mbA)
+    (!vp addA CRDT.addOnly_axioms)
+    define addB := (CRDT.addOnly mbB)
+    (!vp addB CRDT.addOnly_axioms)
+    # mailbox_equality compares the sets of messages. Computed in three steps:
+    # the two sets, their equality by extensionality, and the definition.
+    define lA := ((l2s mbA) = (Set.insert m1 (Set.insert m2 Set.null)))
+    (!vp lA Lst.toSet.toSet-axioms)
+    define lB := ((l2s mbB) = (Set.insert m2 (Set.insert m1 (Set.insert m1 Set.null))))
+    (!vp lB Lst.toSet.toSet-axioms)
+    define sAB := ((Set.insert m1 (Set.insert m2 Set.null)) = (Set.insert m2 (Set.insert m1 (Set.insert m1 Set.null))))
+    (!vp sAB (join Set.in-def [Set.set-identity-characterization]))
+    define eqAB := (CRDT.mailbox_equality mbA mbB)
+    (!vp eqAB [lA lB sAB CRDT.mailbox_equality_def])
+    define conv := (!mp (!uspec* CRDT.eventual_consistency [mbA mbB null null])
+                        (!both addA (!both addB (!both eqAB (!reflex null)))))
+
+    #--- 2. The state holds exactly the added values.
+    define chA := (!mp (!uspec CRDT.apply_mailbox_in_charact mbA) addA)
+    define chA2 := (!uspec* chA [two null])
+    define chA3 := (!uspec* chA [three null])
+    define has2 := (Set.in two (CRDT.apply_mailbox mbA null))
+    (!vp has2 (join sets CRDT.msg_dt_axioms [chA2]))
+    define no3 := (~ (Set.in three (CRDT.apply_mailbox mbA null)))
+    (!vp no3 (join sets CRDT.msg_dt_axioms [chA3 (datatype-axioms "N")]))
+
+    #--- 3. Different messages, different states.
+    define addC := (CRDT.addOnly mbC)
+    (!vp addC CRDT.addOnly_axioms)
+    define chC2 := (!uspec* (!mp (!uspec CRDT.apply_mailbox_in_charact mbC) addC) [two null])
+    define noC2 := (~ (Set.in two (CRDT.apply_mailbox mbC null)))
+    (!vp noC2 (join sets CRDT.msg_dt_axioms [chC2 (datatype-axioms "N")]))
+    define diffAC := (~ ((CRDT.apply_mailbox mbA null) = (CRDT.apply_mailbox mbC null)))
+    (!vp diffAC [has2 noC2])
+
+    #--- 4. Duplicates alone.
+    define addD := (CRDT.addOnly mbD)
+    (!vp addD CRDT.addOnly_axioms)
+    define lD := ((l2s mbD) = (Set.insert m1 (Set.insert m1 Set.null)))
+    (!vp lD Lst.toSet.toSet-axioms)
+    define lC := ((l2s mbC) = (Set.insert m1 Set.null))
+    (!vp lC Lst.toSet.toSet-axioms)
+    define sDC := ((Set.insert m1 (Set.insert m1 Set.null)) = (Set.insert m1 Set.null))
+    (!vp sDC (join Set.in-def [Set.set-identity-characterization]))
+    define eqDC := (CRDT.mailbox_equality mbD mbC)
+    (!vp eqDC [lD lC sDC CRDT.mailbox_equality_def])
+    define dupl := (!mp (!uspec* CRDT.eventual_consistency [mbD mbC null null])
+                        (!both addD (!both addC (!both eqDC (!reflex null)))))
+
+    #--- 5. Another operation is outside the theorem.
+    declare rem: Operation
+    assert rem_ne_add := (~ (rem = CRDT.add))
+    define mbR := (lst (msg rem one) empty:(Lst (Msg N)))
+    define notAddR := (~ (CRDT.addOnly mbR))
+    (!vp notAddR (join CRDT.addOnly_axioms [rem_ne_add]))
+
+    #--- 6. Empty mailboxes.
+    define emptyState := ((CRDT.apply_mailbox empty:(Lst (Msg N)) (Set.insert five null)) = (Set.insert five null))
+    (!vp emptyState CRDT.apply_mailbox_axioms)
+}

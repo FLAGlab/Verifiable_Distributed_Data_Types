@@ -1,0 +1,21 @@
+### t_consistency.ath
+###
+### Vampire tries to derive false from the asserted sentences of each module,
+### one module at a time (premises.ath). Finding a refutation fails the test.
+### Not finding one within the time limit is evidence of consistency, not a
+### proof: the natural numbers have no finite model, so no finite model finder
+### can certify the whole theory, and a long derivation can escape the search.
+### The concrete tests (t_dht_failures.ath in particular) complement this
+### check: they exercise each definition on small examples, which is how the
+### false dht_functional_correctness was found.
+
+load "premises"
+
+module T_Consistency {
+    (expect-no-refutation "locations and libraries" Premises.basics)
+    (expect-no-refutation "distributed pairs" (join Premises.basics Premises.dpair))
+    (expect-no-refutation "replicated functions"
+        (join Premises.basics (join Premises.functions (join Premises.dpair Premises.dfunction))))
+    (expect-no-refutation "distributed hash tables" Premises.dht_all)
+    (expect-no-refutation "grow-only set CRDT" (join Premises.basics Premises.crdt))
+}

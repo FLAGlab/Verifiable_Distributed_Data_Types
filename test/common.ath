@@ -1,0 +1,49 @@
+### common.ath
+###
+### Shared definitions for the tests in Code/test/. Every test loads this
+### file, which loads the whole development (sensor_app and everything below
+### it), so a test runs against exactly the sentences the paper relies on.
+###
+### Conventions.
+###   * A test passes when its output contains no `Error` line.
+###   * Every check is positive. A property that must NOT hold is tested by
+###     proving its negation.
+###   * Concrete computations (unfolding definitions on small examples) are
+###     sent to Vampire with `vp`, always with a short premise list. Vampire
+###     is strong on small premise sets and weak on the whole assumption base.
+###   * Sentences obtained with `vp` are trusted from Vampire, not checked by
+###     Athena. Each test says which of its results are Athena-checked.
+
+load "../sensor_app"
+
+module TestLib {
+
+    define L      := Location.localhost          # provably alive
+    define U      := Location.unreachableHost    # provably dead
+    define aliveL := Location.aliveLocal
+    define deadU  := (~ Location.alive Location.unreachableHost)
+
+    define one   := (S zero)
+    define two   := (S one)
+    define three := (S two)
+    define four  := (S three)
+    define five  := (S four)
+
+    define opts := [['max-time 60]]
+
+    # (!vp goal premises): Vampire with a short premise list.
+    define vp := method (goal premises) (!vprove-from goal premises opts)
+
+    # Fail the whole run with a message.
+    define (test-fail label) := (error (join "TEST FAILURE: " label))
+
+    # Consistency check: try to derive false from `premises`. Finding a
+    # refutation is a failure. Not finding one within the time limit is only
+    # evidence of consistency, not a proof.
+    define (expect-no-refutation label premises) :=
+        let {_ := try { (!vprove-from false premises opts) | (!true-intro) }}
+          check { (holds? false) => (test-fail (join "refutation found for " label))
+                | else => (print (join "\nCONSISTENCY " (join label ": no refutation within the time limit\n"))) }
+}
+
+open TestLib
