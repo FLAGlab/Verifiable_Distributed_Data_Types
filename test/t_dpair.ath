@@ -1,0 +1,53 @@
+### t_dpair.ath (paper Section 3.2, distributed pairs)
+###
+### Edge cases of the failure-aware destructors and of the two comparisons.
+###   1. Each destructor returns NONE exactly when its own location is dead,
+###      independently of the other location.
+###   2. Equality of distributed pairs is structural: the same values at
+###      different locations give different pairs.
+###   3. A pair whose two locations are dead is dpr-equiv to any other such
+###      pair, whatever the values: nothing is observable. dpr-equiv is a
+###      behavioral relation, not a disguised equality.
+###   4. pr-equiv (pair vs distributed pair) fails as soon as one location is
+###      dead, even when the values agree.
+###   5. Equal pairs are dpr-equiv (instance of equal-equiv-conjecture,
+###      Athena-checked).
+
+load "common"
+
+module T_DPair {
+
+    define p_LU  := (dpr L zero U one)     # first alive, second dead
+    define p_UL  := (dpr U zero L one)     # first dead, second alive
+    define p_UU  := (dpr U zero U one)     # both dead
+    define p_UU' := (dpr U one U zero)     # both dead, other values
+    define p_LL  := (dpr L zero L one)     # both alive
+    define fa    := DPr.first-axioms
+    define sa    := DPr.second-axioms
+
+    # 1. Destructors.
+    define d1 := (((DPr.getFirst p_LU) = (SOME zero)) & ((DPr.getSecond p_LU) = NONE))
+    (!vp d1 (join fa sa [aliveL deadU]))
+    define d2 := (((DPr.getFirst p_UL) = NONE) & ((DPr.getSecond p_UL) = (SOME one)))
+    (!vp d2 (join fa sa [aliveL deadU]))
+    define d3 := (((DPr.getFirst p_UU) = NONE) & ((DPr.getSecond p_UU) = NONE))
+    (!vp d3 (join fa sa [deadU]))
+
+    # 2. Same values, different locations: not equal.
+    define e1 := (~ (p_LL = (dpr U zero L one)))
+    (!vp e1 [DPr.dpr-lFirst aliveL deadU])
+
+    # 3. Two unobservable pairs are behaviorally equivalent, with different values.
+    define q1 := (p_UU DPr.dpr-equiv p_UU')
+    (!vp q1 (join fa sa [DPr.dpr-equiv-def deadU]))
+    # ... while they are not equal (the values differ, and zero =/= one).
+    define q2 := (~ (p_UU = p_UU'))
+    (!vp q2 [DPr.dpr-vFirst (datatype-axioms "N")])
+
+    # 4. pr-equiv fails when the second location is dead.
+    define r1 := (~ ((pr zero one) DPr.pr-equiv p_LU))
+    (!vp r1 (join fa sa [DPr.pr-dpr-equiv-def aliveL deadU Pr.pr-first Pr.pr-second (datatype-axioms "Option")]))
+
+    # 5. Equal pairs are equivalent (Athena-checked instance of a proven theorem).
+    define s1 := (!mp (!uspec* DPr.equal-equiv-conjecture [p_LU p_LU]) (!reflex p_LU))
+}

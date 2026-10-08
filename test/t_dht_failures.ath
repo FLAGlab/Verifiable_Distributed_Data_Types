@@ -1,0 +1,115 @@
+### t_dht_failures.ath (paper Section 3.4, failures and hypotheses)
+###
+###   1. The earlier statement of dht_functional_correctness, with only
+###      (available dht) as hypothesis, is false. Its negation is proven here:
+###      on the ring [U, L] with rv = 0 and the value 1 inserted, the table is
+###      available but (query d 0) = NONE. This is the bug that made the
+###      assumption base inconsistent before comment 5 was addressed.
+###   2. Each hypothesis of dht_replication_correctness is needed.
+###      a. Ring U U L with rv = 1: a run of two dead buckets. The replication
+###         invariant fails, and inserting a value that hashes to bucket 0
+###         gives a table that is not available.
+###      b. Ring L U L with rv = 1 and a dead table location: the replication
+###         invariant holds, but neither the empty table nor any insertion is
+###         available.
+###   3. Windows longer than the ring. On U U L, rv = 2 covers the dead run,
+###      and rv = 5 (more than the number of buckets) wraps around twice and
+###      still finds the alive bucket.
+###   4. Hash values past the end of the ring. With rv = 0 on L U L, key 5
+###      lands on bucket 2 (alive) and key 4 on bucket 1 (dead).
+
+load "common"
+
+module T_DHT_Failures {
+
+    define hf := Function.identity:(Function.fn N N)
+    define id0 := (!uspec Function.identity-definition zero)
+    define id1 := (!uspec Function.identity-definition one)
+    define id4 := (!uspec Function.identity-definition four)
+    define id5 := (!uspec Function.identity-definition five)
+    define ak_ax := DL_L_S.available_key_axioms
+
+    #--- 1. The earlier dht_functional_correctness is false.
+    define ring2 := (lst U (lst L empty:(Lst Location)))
+    define INIT2 := (dlst U empty:(Lst N) (dlst L empty:(Lst N) (dempty L)))
+    define e2 := (dht_empty ring2 hf zero L)
+    define d  := (dht_insert e2 one)
+    define dl := (DL_L_S.insertDPrList (hf at one) zero one INIT2)
+
+    define g2 := ((DL_L_S.initDPrList hf L ring2) = INIT2)
+    (!vp g2 DL_L_S.initDPrList_axioms)
+    define r2 := ((DHTable.rep e2) = (dhtr hf zero L INIT2))
+    (!vp r2 (join DHTable.rep_axioms [g2]))
+    define rd := ((DHTable.rep d) = (dhtr hf zero L dl))
+    (!vp rd (join DHTable.rep_axioms [r2]))
+    define k1 := (DL_L_S.available_key (hf at one) zero INIT2 INIT2)
+    (!vp k1 (join ak_ax [id1 aliveL]))
+    define avd := (DHTable.available d)
+    (!vp avd (join DHTable.available_axioms [r2 k1 aliveL]))
+    define nk0 := (~ (DL_L_S.available_key (hf at zero) zero INIT2 INIT2))
+    (!vp nk0 (join ak_ax [id0 deadU]))
+    define inv0 := (!uspec* DL_L_S.available_key_insert_invariant [(hf at one) zero one INIT2 (hf at zero) zero])
+    define nk0d := (~ (DL_L_S.available_key (hf at zero) zero dl dl))
+    (!vp nk0d [nk0 inv0])
+    define qd0 := ((DHTable.query d zero) = NONE)
+    (!vp qd0 (join DHTable.query_axioms DHTable.query_aux_axioms [rd nk0d aliveL]))
+
+    define old_dfc :=
+        (forall ?dht:(DHTable N) ?v:N .
+            (DHTable.available ?dht) ==>
+            ((exists ?ll:(Lst Location) ?f:(Function.fn N N) ?rv:N ?htl:Location .
+                (?dht = (dht_empty ?ll ?f ?rv ?htl)) &
+                (((DHTable.query ?dht ?v) = (SOME false)) &
+                 ((DHTable.values ?dht) = (SOME Set.null))))
+             | (exists ?dht0:(DHTable N) ?v0:N ?b:Boolean ?b0:Boolean ?s:(Set.Set N) ?s0:(Set.Set N) .
+                (?dht = (dht_insert ?dht0 ?v0)) &
+                ((((DHTable.query ?dht ?v) = (SOME ?b)) &
+                  (((DHTable.query ?dht0 ?v) = (SOME ?b0)) & (iff ?b (or (= ?v ?v0) ?b0)))) &
+                 (((DHTable.values ?dht) = (SOME ?s)) &
+                  (((DHTable.values ?dht0) = (SOME ?s0)) & (?s = (Set.insert ?v0 ?s0))))))))
+
+    define old_dfc_is_false :=
+        (!by-contradiction (~ old_dfc)
+            assume h := old_dfc
+                let { inst := (!uspec* h [d zero]) }
+                (!vp false (join DHTable.dht_st_axioms [inst avd qd0 (datatype-axioms "Option")])))
+
+    #--- 2a. A run of rv + 1 dead buckets.
+    define llb := (lst U (lst U (lst L empty:(Lst Location))))
+    define INITb := (dlst U empty:(Lst N) (dlst U empty:(Lst N) (dlst L empty:(Lst N) (dempty L))))
+    define eb := (dht_empty llb hf one L)
+    define gb := ((DL_L_S.initDPrList hf L llb) = INITb)
+    (!vp gb DL_L_S.initDPrList_axioms)
+    define rb := ((DHTable.rep eb) = (dhtr hf one L INITb))
+    (!vp rb (join DHTable.rep_axioms [gb]))
+    define ncfb := (~ (DL_L_S.no_consecutive_failures one INITb INITb))
+    (!vp ncfb (join DL_L_S.no_consecutive_failures_axioms ak_ax [deadU]))
+    define not_avb := (~ (DHTable.available (dht_insert eb zero)))
+    (!vp not_avb (join DHTable.available_axioms ak_ax [rb id0 deadU]))
+
+    #--- 2b. Dead table location, good ring.
+    define ll3  := (lst L (lst U (lst L empty:(Lst Location))))
+    define INIT := (dlst L empty:(Lst N) (dlst U empty:(Lst N) (dlst L empty:(Lst N) (dempty L))))
+    define ncf3 := (DL_L_S.no_consecutive_failures one INIT INIT)
+    (!vp ncf3 (join DL_L_S.no_consecutive_failures_axioms ak_ax [aliveL deadU]))
+    define eU := (dht_empty ll3 hf one U)
+    define INITU := (dlst L empty:(Lst N) (dlst U empty:(Lst N) (dlst L empty:(Lst N) (dempty U))))
+    define gU := ((DL_L_S.initDPrList hf U ll3) = INITU)
+    (!vp gU DL_L_S.initDPrList_axioms)
+    define rU := ((DHTable.rep eU) = (dhtr hf one U INITU))
+    (!vp rU (join DHTable.rep_axioms [gU]))
+    define not_avU := ((~ (DHTable.available eU)) & (~ (DHTable.available (dht_insert eU one))))
+    (!vp not_avU (join DHTable.available_axioms [rU deadU]))
+
+    #--- 3. Windows longer than the dead run, and longer than the ring.
+    define ak_rv2 := (DL_L_S.available_key (hf at zero) two INITb INITb)
+    (!vp ak_rv2 (join ak_ax [id0 aliveL deadU]))
+    define ak_rv5 := (DL_L_S.available_key (hf at zero) five INITb INITb)
+    (!vp ak_rv5 (join ak_ax [id0 aliveL deadU]))
+
+    #--- 4. Hash values past the end of the ring, rv = 0.
+    define ak_5 := (DL_L_S.available_key (hf at five) zero INIT INIT)
+    (!vp ak_5 (join ak_ax [id5 aliveL]))
+    define nak_4 := (~ (DL_L_S.available_key (hf at four) zero INIT INIT))
+    (!vp nak_4 (join ak_ax [id4 deadU]))
+}

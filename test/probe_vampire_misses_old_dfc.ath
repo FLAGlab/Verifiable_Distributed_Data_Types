@@ -1,0 +1,30 @@
+### probe_vampire_misses_old_dfc.ath  (not part of run_tests.sh; takes ~10 minutes)
+###
+### Records a limit of refutation search. The earlier dht_functional_correctness
+### (asserted with only `available dht` as hypothesis) is false, and
+### t_dht_failures.ath proves its negation from the definitions. Yet Vampire,
+### given only the 104 definitional premises of the DHT modules plus that
+### false sentence, does not derive `false` within 2 x 300 seconds. Measured
+### on 2026-10-08: "CANARY refuted?  false".
+### Conclusion: a refutation search over the definitions does not catch this
+### class of error. Concrete examples that instantiate a sentence on a small
+### table do.
+
+load "premises"
+define old_dfc :=
+    (forall ?dht:(DHTable N) ?v:N .
+        (DHTable.available ?dht) ==>
+        ((exists ?ll:(Lst Location) ?f:(Function.fn N N) ?rv:N ?htl:Location .
+            (?dht = (dht_empty ?ll ?f ?rv ?htl)) &
+            (((DHTable.query ?dht ?v) = (SOME false)) &
+             ((DHTable.values ?dht) = (SOME Set.null))))
+         | (exists ?dht0:(DHTable N) ?v0:N ?b:Boolean ?b0:Boolean ?s:(Set.Set N) ?s0:(Set.Set N) .
+            (?dht = (dht_insert ?dht0 ?v0)) &
+            ((((DHTable.query ?dht ?v) = (SOME ?b)) &
+              (((DHTable.query ?dht0 ?v) = (SOME ?b0)) & (iff ?b (or (= ?v ?v0) ?b0)))) &
+             (((DHTable.values ?dht) = (SOME ?s)) &
+              (((DHTable.values ?dht0) = (SOME ?s0)) & (?s = (Set.insert ?v0 ?s0))))))))
+assert old_dfc
+(print "\nPREMISES " (length Premises.dht_all) "\n")
+define r := try { (!vprove-from false (join Premises.dht_all [old_dfc]) [['max-time 300]]) | (!true-intro) }
+(print "\nCANARY refuted? " (holds? false) "\n")

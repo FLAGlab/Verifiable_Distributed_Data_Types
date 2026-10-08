@@ -1,0 +1,49 @@
+### premises.ath
+###
+### The definitional premises of each module of the paper, grouped so that
+### Vampire can be run on one module at a time. Only asserted sentences are
+### listed (definitions, datatype axioms, library axioms and the two location
+### facts), not proven theorems: a contradiction can only come from asserted
+### sentences, and fewer premises make Vampire's search more effective.
+
+load "common"
+
+module Premises {
+
+    # Accept a sentence or a list of sentences, return a list.
+    define (as-list x) := match x { (some-list l) => l | _ => [x] }
+    define (flat xs) := (foldr join [] (map as-list xs))
+
+    define basics := (flat [aliveL deadU
+                            (datatype-axioms "N") (datatype-axioms "Option") (datatype-axioms "Boolean")
+                            (datatype-axioms "Lst") Lst.In.in-axioms Lst.toSet.toSet-axioms
+                            Set.in-def Set.union-def Set.set-identity])
+
+    define functions := (flat [Function.identity-definition Function.compose-definition Function.fnction-equality])
+
+    define dpair := (flat [DPr.dpr-st-axioms DPr.dpr-se-axioms DPr.first-axioms DPr.second-axioms
+                           DPr.pr-dpr-equiv-def DPr.dpr-equiv-def DPr.alive-dpr-def DPr.pr-dpr-equal-def
+                           Pr.pr-dt-axioms Pr.pr-se-axioms])
+
+    define dfunction := (flat [DFunction.function_replica_axiom DFunction.apply_first_axiom
+                               DFunction.apply_second_axiom DFunction.apply_none_axiom
+                               DFunction.apply_composition_some DFunction.apply_composition_none])
+
+    define dlist := (flat [DLst.dlst-st-axioms DLst.dlst-se-axioms])
+
+    define dlls := (flat [DL_L_S.initDPrList_axioms DL_L_S.insertNAt_axioms DL_L_S.countWraps_axioms
+                          DL_L_S.bucketIndex_axioms DL_L_S.insertDPrList_axioms DL_L_S.dlls_locs_axioms
+                          DL_L_S.in_axioms DL_L_S.available_key_axioms DL_L_S.same_locs_def
+                          DL_L_S.no_consecutive_failures_axioms DL_L_S.values_axioms DL_L_S.dlls_end_axioms
+                          DL_L_S.hits_axioms DL_L_S.drop_axioms DL_L_S.same_mem_axioms])
+
+    define dhtable := (flat [DHTable.rep_axioms DHTable.available_axioms DHTable.query_aux_axioms
+                             DHTable.query_axioms DHTable.values_aux_axioms DHTable.values_axiom
+                             DHTable.dht_st_axioms DHTable.dht_se_axioms DHTable.dhtr_se_axioms
+                             DHTable.dhtr_no_conf])
+
+    define crdt := (flat [CRDT.msg_dt_axioms CRDT.singleton-def CRDT.mailbox_equality_def
+                          CRDT.apply_add_axiom CRDT.apply_mailbox_axioms CRDT.addOnly_axioms])
+
+    define dht_all := (join basics (join functions (join dlist (join dlls dhtable))))
+}

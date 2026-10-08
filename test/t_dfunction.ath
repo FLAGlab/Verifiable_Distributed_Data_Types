@@ -1,0 +1,82 @@
+### t_dfunction.ath (paper Section 3.3, replicated functions)
+###
+### Two test functions on N that do not commute: kz (constant zero) and inc
+### (successor). Their definitions are fresh symbols with one defining
+### equation each, so they cannot make the assumption base inconsistent.
+###   1. Fault tolerance (Athena-checked instances of the theorem): both
+###      locations alive, and the first dead with the second alive (fallback).
+###   2. Both locations dead: the application returns NONE.
+###   3. Composition order follows `o`: (replicaComposition G F) applies F
+###      first. With kz and inc the two orders give different results.
+###   4. Composition fails (NONE) when the inner stage, or the outer stage, has
+###      no alive location.
+###   5. One alive location per stage suffices, in any position.
+
+load "common"
+
+module T_DFunction {
+
+    declare kz, inc: (Function.fn N N)
+    assert kz_def  := (forall ?x:N . (kz at ?x) = zero)
+    assert inc_def := (forall ?x:N . (inc at ?x) = (S ?x))
+
+    define getters := (join DPr.first-axioms DPr.second-axioms)
+    define rep_ax   := DFunction.function_replica_axiom
+
+    # 1. Fault tolerance.
+    define ft_LL := (!mp (!uspec* DFunction.fault_tolerance_correctness [two inc L L])
+                         (!either (Location.alive L) (Location.alive L)))
+    define ft_UL := (!mp (!uspec* DFunction.fault_tolerance_correctness [two inc U L])
+                         (!either (Location.alive U) (Location.alive L)))
+    define ft_UL_value := (((DFunction.functionReplica inc U L) at two) = (SOME three))
+    (!vp ft_UL_value [ft_UL inc_def])
+
+    # 2. Both locations dead.
+    define none_UU := (((DFunction.functionReplica inc U U) at two) = NONE)
+    (!vp none_UU (join getters [rep_ax DFunction.apply_none_axiom deadU]))
+
+    # 3. Composition order.
+    define rc_inc_after_kz := (DFunction.replicaComposition (DFunction.functionReplica inc L L)
+                                                            (DFunction.functionReplica kz L L))
+    define rc_kz_after_inc := (DFunction.replicaComposition (DFunction.functionReplica kz L L)
+                                                            (DFunction.functionReplica inc L L))
+    define hypLLLL := (!both (!either (Location.alive L) (Location.alive L))
+                             (!either (Location.alive L) (Location.alive L)))
+    # [x f g lg0 lg1 lf0 lf1]: f is the inner function, g the outer one.
+    define c1 := (!mp (!uspec* DFunction.fault_tolerance_correctness_composition [two kz inc L L L L]) hypLLLL)
+    define c2 := (!mp (!uspec* DFunction.fault_tolerance_correctness_composition [two inc kz L L L L]) hypLLLL)
+    define c1_value := ((rc_inc_after_kz at two) = (SOME one))
+    (!vp c1_value [c1 Function.compose-definition kz_def inc_def])
+    define c2_value := ((rc_kz_after_inc at two) = (SOME zero))
+    (!vp c2_value [c2 Function.compose-definition kz_def inc_def])
+    define orders_differ := (~ ((rc_inc_after_kz at two) = (rc_kz_after_inc at two)))
+    (!vp orders_differ [c1_value c2_value (datatype-axioms "Option") (datatype-axioms "N")])
+
+    # 4a. Inner stage with no alive location.
+    define inner_dead := (((DFunction.functionReplica kz U U) at two) = NONE)
+    (!vp inner_dead (join getters [rep_ax DFunction.apply_none_axiom deadU]))
+    define comp_inner_dead :=
+        (((DFunction.replicaComposition (DFunction.functionReplica inc L L)
+                                        (DFunction.functionReplica kz U U)) at two) = NONE)
+    (!vp comp_inner_dead [inner_dead DFunction.apply_composition_none])
+
+    # 4b. Outer stage with no alive location.
+    define inner_ok := (!mp (!uspec* DFunction.fault_tolerance_correctness [two kz L L])
+                            (!either (Location.alive L) (Location.alive L)))
+    define outer_dead := (((DFunction.functionReplica inc U U) at zero) = NONE)
+    (!vp outer_dead (join getters [rep_ax DFunction.apply_none_axiom deadU]))
+    define comp_outer_dead :=
+        (((DFunction.replicaComposition (DFunction.functionReplica inc U U)
+                                        (DFunction.functionReplica kz L L)) at two) = NONE)
+    (!vp comp_outer_dead [inner_ok kz_def outer_dead DFunction.apply_composition_some])
+
+    # 5. One alive location per stage, in different positions.
+    define hypMixed := (!both (!either (Location.alive U) (Location.alive L))
+                              (!either (Location.alive L) (Location.alive U)))
+    # inner kz at (U, L), outer inc at (L, U)
+    define c3 := (!mp (!uspec* DFunction.fault_tolerance_correctness_composition [two kz inc L U U L]) hypMixed)
+    define c3_value :=
+        (((DFunction.replicaComposition (DFunction.functionReplica inc L U)
+                                        (DFunction.functionReplica kz U L)) at two) = (SOME one))
+    (!vp c3_value [c3 Function.compose-definition kz_def inc_def])
+}

@@ -1,0 +1,62 @@
+### t_dht_empty.ath (paper Section 3.4, empty DHTs)
+###
+### The table location is critical to the availability of the DHT.
+###   1. An empty table is available exactly when its location is alive.
+###   2. query on an empty table: SOME false when the location is alive,
+###      NONE when it is dead. It does not consult the buckets, so this holds
+###      even when every bucket is dead.
+###   3. values on an empty table: SOME null when the location is alive, NONE
+###      when it is dead (Athena-checked instances of values_fc_empty and
+###      values_empty_unavailable).
+###   4. A table with no buckets at all: the empty table is available, and
+###      no_consecutive_failures holds vacuously, but after any insertion the
+###      table is no longer available. This is why dht_replication_correctness
+###      asks for a non-empty bucket list.
+
+load "common"
+
+module T_DHT_Empty {
+
+    define hf   := Function.identity:(Function.fn N N)
+    define ll3  := (lst L (lst U (lst L empty:(Lst Location))))
+    define llUU := (lst U (lst U empty:(Lst Location)))
+    define ll0  := empty:(Lst Location)
+
+    define e_L  := (dht_empty ll3 hf one L)     # location alive
+    define e_U  := (dht_empty ll3 hf one U)     # location dead
+    define e_UU := (dht_empty llUU hf one L)    # location alive, every bucket dead
+    define e_0  := (dht_empty ll0 hf one L)     # no buckets
+
+    define av := DHTable.available_axioms
+
+    # 1. Availability of empty tables.
+    define a1 := ((DHTable.available e_L) & (~ (DHTable.available e_U)))
+    (!vp a1 (join av [aliveL deadU]))
+
+    # 2. query (Athena-checked for the alive case).
+    define q_L  := (!mp (!uspec* DHTable.query_fc_empty [ll3 hf one L three]) aliveL)
+    define q_U  := ((DHTable.query e_U three) = NONE)
+    (!vp q_U (join DHTable.query_axioms [deadU]))
+    # Every bucket dead, location alive: still (SOME false), while the window
+    # of the key has no alive bucket.
+    define q_UU := (!mp (!uspec* DHTable.query_fc_empty [llUU hf one L zero]) aliveL)
+    define initUU := (dlst U empty:(Lst N) (dlst U empty:(Lst N) (dempty L)))
+    define g_UU := ((DL_L_S.initDPrList hf L llUU) = initUU)
+    (!vp g_UU DL_L_S.initDPrList_axioms)
+    define w_UU := (~ (DL_L_S.available_key (hf at zero) one initUU initUU))
+    define id0 := (!uspec Function.identity-definition zero)
+    (!vp w_UU (join DL_L_S.available_key_axioms [id0 deadU]))
+
+    # 3. values (Athena-checked).
+    define v_L := (!mp (!uspec* DHTable.values_fc_empty [ll3 hf one L]) aliveL)
+    define v_U := (!mp (!uspec* DHTable.values_empty_unavailable [ll3 hf one U]) deadU)
+
+    # 4. No buckets.
+    define d_0 := (dht_insert e_0 two)
+    define n_0 := (DL_L_S.no_consecutive_failures one (dempty L) (dempty L))
+    (!vp n_0 DL_L_S.no_consecutive_failures_axioms)
+    define g_0 := ((DHTable.rep e_0) = (dhtr hf one L (dempty L)))
+    (!vp g_0 (join DHTable.rep_axioms DL_L_S.initDPrList_axioms))
+    define a_0 := ((DHTable.available e_0) & (~ (DHTable.available d_0)))
+    (!vp a_0 (join av DL_L_S.available_key_axioms [g_0 aliveL]))
+}
