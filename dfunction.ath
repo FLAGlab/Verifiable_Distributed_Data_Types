@@ -1,129 +1,130 @@
 load "dpair.ath"
 load "function.ath"
-define lAlive := Location.alive 
 
 
 module DFunction {
     open Function
     assert (theory-axioms Function.theory)
     # Declarations
-    declare alive: (D,R) [(DPr (fn D R) (fn D R))] -> Boolean
+    declare apply: (D,R) [(DPr (fn D R) (fn D R)) D] -> (Option R)
+    # (F at x) is the same as (apply F x), as (f at x) is for unreplicated
+    # functions. The overload dispatches on the sorts of the arguments.
+    overload at apply
 
-    declare apply: (D,R) [(DPr (fn D R) (fn D R)) D] -> (Option R) 
-
-    declare functionReplica: (D,R) [(fn D R) Location Location] 
+    declare functionReplica: (D,R) [(fn D R) Location Location]
                                    -> (DPr (fn D R) (fn D R))
 
-    declare replicaComposition: (A, B, C) [(DPr (fn A B) (fn A B)) (DPr (fn B C) (fn B C))] 
+    # Same argument order as Function.o: the outer function comes first, so
+    # (replicaComposition G F) replicates (g o f).
+    declare replicaComposition: (A, B, C) [(DPr (fn B C) (fn B C)) (DPr (fn A B) (fn A B))]
                                           -> (DPr (fn A C) (fn A C))
 
     # Definitions
 
-    define [f g x l1 l0 lg lg0 lg1 lf0 lf1] := 
-           [?f:(fn 'D 'R) ?g:(fn 'R 'O) ?x:'D ?l1:Location ?l0:Location
+    define [f g h x y l0 l1 lg lg0 lg1 lf0 lf1] :=
+           [?f:(fn 'D 'R) ?g:(fn 'R 'O) ?h:(fn 'D 'R) ?x:'D ?y:'R ?l0:Location ?l1:Location
             ?lg:Location ?lg0:Location ?lg1:Location ?lf0:Location ?lf1:Location]
+    define [F G] := [?F:(DPr (fn 'D 'R) (fn 'D 'R)) ?G:(DPr (fn 'R 'O) (fn 'R 'O))]
 
-    define rComp := 
-            (replicaComposition (functionReplica f lf0 lf1) (functionReplica g lg0 lg1))
+    define rComp :=
+            (replicaComposition (functionReplica g lg0 lg1) (functionReplica f lf0 lf1))
             # g(f(x))
 
     # Asserts
 
-    assert* alive_axiom := (iff (alive (dpr l1 f l0 f)) ((lAlive l1) or (lAlive l0)))
+    # A function replica is the distributed pair holding the same function at
+    # two locations.
+    assert* function_replica_axiom := ((functionReplica f l0 l1) = (dpr l0 f l1 f))
 
-    assert* function_replica_axiom := ((functionReplica f l1 l0) = (dpr l1 f l0 f))
+    # apply reads the function only through the failure-aware destructors
+    # getFirst and getSecond of distributed pairs (dpair.ath). It uses the
+    # replica at the first location when that location is alive, falls back to
+    # the replica at the second location otherwise, and returns NONE when both
+    # are unreachable. The fault-tolerance theorems below therefore follow from
+    # the failure model of distributed pairs; they are not part of this
+    # definition. (An earlier version defined apply directly from a liveness
+    # predicate on replicas, which made fault_tolerance_correctness a
+    # restatement of its axioms.)
+    assert* apply_first_axiom :=
+        (((DPr.getFirst (functionReplica f l0 l1)) = (SOME h))
+         ==> (((functionReplica f l0 l1) at x) = (SOME (h at x))))
+    assert* apply_second_axiom :=
+        ((((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
+          ((DPr.getSecond (functionReplica f l0 l1)) = (SOME h)))
+         ==> (((functionReplica f l0 l1) at x) = (SOME (h at x))))
+    assert* apply_none_axiom :=
+        ((((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
+          ((DPr.getSecond (functionReplica f l0 l1)) = NONE))
+         ==> (((functionReplica f l0 l1) at x) = NONE))
 
-    assert apply_axioms :=
-    (fun [
-        (apply (functionReplica f l1 l0) x) = 
-            [
-                (SOME (f at x)) when (alive (functionReplica f l1 l0))
-                NONE            when (~(alive (functionReplica f l1 l0)))
-            ]
-
-    ])
-
-    # NOTE: both guards must name the SAME replica, `(functionReplica f lf0 lf1)`
-    # — the one that actually occurs in `rComp`. An earlier version wrote the
-    # negative guard over `(functionReplica f l1 l0)`, and since `l1`/`l0` are
-    # pattern variables distinct from `lf0`/`lf1`, `fun` quantified them
-    # independently of the composition's own sites. That let the NONE clause be
-    # instantiated at an unrelated dead pair while the composition's own sites
-    # were alive, so the same term was provably both `NONE` and
-    # `(SOME (g at (f at x)))` — an inconsistent assumption base, and with it a
-    # vacuous `fault_tolerance_correctness`.
-    assert apply_composition_axiom :=
-    (fun [
-        (apply rComp x) =
-            [
-                (apply (functionReplica g lg0 lg1 ) (f at x))  when (alive (functionReplica f lf0 lf1))
-                NONE                         when (~(alive (functionReplica f lf0 lf1)))
-            ]
-    ])
-
+    # Composition passes the result of the inner replica F to the outer one G,
+    # and propagates NONE. The two clauses are disjoint, since (F at x) is
+    # either NONE or (SOME y) for a unique y.
+    assert* apply_composition_some :=
+        (((F at x) = (SOME y)) ==> (((replicaComposition G F) at x) = (G at y)))
+    assert* apply_composition_none :=
+        (((F at x) = NONE) ==> (((replicaComposition G F) at x) = NONE))
 
     # Theorem Definitions
-
     define fault_tolerance_correctness :=
-    (forall x f l1 l0 .
+    (forall x f l0 l1 .
         (if
-            ((lAlive l1) or (lAlive l0))
-            ((apply (functionReplica f l1 l0) x) = (SOME (f at x)))
+            ((alive l0) or (alive l1))
+            (((functionReplica f l0 l1) at x) = (SOME (f at x)))
         )
     )
 
     define fault_tolerance_correctness_composition :=
     (forall x f g lg0 lg1 lf0 lf1 .
         (if
-            (((lAlive lf0) or (lAlive lf1)) and ((lAlive lg0) or (lAlive lg1)))
-            ((apply rComp x) = (SOME (g o f) at x))
+            (((alive lf0) or (alive lf1)) and ((alive lg0) or (alive lg1)))
+            ((rComp at x) = (SOME ((g o f) at x)))
             # g(f(x))
         )
     )
 
     # Theorem Proofs
-
+    # By cases on the first location. If it is alive, getFirst returns the
+    # function; otherwise the second location is alive by hypothesis, getFirst
+    # returns NONE and getSecond returns the function.
     conclude fault_tolerance_correctness
-        pick-any x:'D f:(fn 'D 'R) l1:Location l0:Location
-            assume((lAlive l1) or (lAlive l0))
-                let {
-                    _ := 
-                        (!chain<- [
-                            (alive (functionReplica f l1 l0))
-                            <== (alive (dpr l1 f l0 f))           [function_replica_axiom]
-                            <== ((lAlive l1) or (lAlive l0))                 [alive_axiom]
-                        ])
-                }
-                (!chain [
-                    (apply (functionReplica f l1 l0) x) 
-                    = (SOME (f at x))                                       [apply_axioms]
-                ])
+        pick-any x:'D f:(fn 'D 'R) l0:Location l1:Location
+            assume hyp := ((alive l0) or (alive l1))
+                (!two-cases
+                    assume a0 := (alive l0)
+                        let {g0 := (!chain [(DPr.getFirst (functionReplica f l0 l1))
+                                            = (DPr.getFirst (dpr l0 f l1 f))   [function_replica_axiom]
+                                            = (SOME f)                         [DPr.first-alive]])}
+                        (!chain [((functionReplica f l0 l1) at x)
+                                 = (SOME (f at x))                             [apply_first_axiom]])
+                    assume n0 := (~ (alive l0))
+                        let {a1 := (!dsyl hyp n0);
+                             g0 := (!chain [(DPr.getFirst (functionReplica f l0 l1))
+                                            = (DPr.getFirst (dpr l0 f l1 f))   [function_replica_axiom]
+                                            = NONE                             [DPr.first-not-alive]]);
+                             g1 := (!chain [(DPr.getSecond (functionReplica f l0 l1))
+                                            = (DPr.getSecond (dpr l0 f l1 f))  [function_replica_axiom]
+                                            = (SOME f)                         [DPr.second-alive]]);
+                             _  := (!both g0 g1)}
+                        (!chain [((functionReplica f l0 l1) at x)
+                                 = (SOME (f at x))                             [apply_second_axiom]]))
 
+    # Composition: the inner stage returns (SOME (f at x)) by
+    # fault_tolerance_correctness, so the composite applies the outer replica
+    # to (f at x), which returns (SOME (g at (f at x))) by the same theorem.
     conclude fault_tolerance_correctness_composition
         pick-any x:'D f:(fn 'D 'R) g:(fn 'R 'O) lg0:Location lg1:Location lf0:Location lf1:Location
-            assume hyp := (((lAlive lf0) or (lAlive lf1)) and ((lAlive lg0) or (lAlive lg1)))
-                let {
-                    alive_functionReplica_f :=
-                        (!chain<- [
-                            (alive (functionReplica f lf0 lf1))
-                            <== (alive (dpr lf0 f lf1 f))         [function_replica_axiom]
-                            <== ((lAlive lf0) or (lAlive lf1))               [alive_axiom]
-                        ]);
-                    alive_functionReplica_g :=
-                        (!chain<- [
-                            (alive (functionReplica g lg0 lg1))
-                            <== (alive (dpr lg0 g lg1 g))         [function_replica_axiom]
-                            <== ((lAlive lg0) or (lAlive lg1))               [alive_axiom]
-                        ])
-                }
+            assume hyp := (((alive lf0) or (alive lf1)) and ((alive lg0) or (alive lg1)))
+                let {ff := (!mp (!uspec* fault_tolerance_correctness [x f lf0 lf1]) (!left-and hyp));
+                     gg := (!mp (!uspec* fault_tolerance_correctness [(f at x) g lg0 lg1]) (!right-and hyp))}
                 (!chain [
-                    (apply (replicaComposition (functionReplica f lf0 lf1) (functionReplica g lg0 lg1)) x)
-                    =
-                    (apply (functionReplica g lg0 lg1) (f at x))           [apply_composition_axiom]
-                    =
-                    (SOME (g at (f at x)))                                            [apply_axioms]
-                    =
-                    (SOME ((g o f) at x))                                       [compose-definition]
+                    ((replicaComposition (functionReplica g lg0 lg1) (functionReplica f lf0 lf1)) at x)
+                    = ((functionReplica g lg0 lg1) at (f at x))       [apply_composition_some]
+                    = (SOME (g at (f at x)))                            [gg]
+                    = (SOME ((g o f) at x))                             [compose-definition]
                 ])
 
 }
+
+# Export the infix syntax: clients write (F at x) for (DFunction.apply F x).
+overload at DFunction.apply

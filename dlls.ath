@@ -60,11 +60,35 @@ module DL_L_S {
             (initDPrList f htl0 (lst l tail_l)) = (dlst l empty (initDPrList f htl0 tail_l))
         ])
 
-    # TODO: need a proof for this.. it seems to be easy
-    assert initDPrList_characterization :=
-    (forall f htl lsts . (
-                          ((initDPrList f htl lsts) = (dempty htl)) 
-                        | (exists l tail_l . (initDPrList f htl lsts) = (dlst l empty (initDPrList f htl tail_l) ))))
+    # Shape of an initialized bucket list (PROVEN, by cases on the location list).
+    # Stated first with the location list outermost, so that datatype-cases can
+    # split on it, and then re-quantified in the order used by its call sites.
+    define initDPrList_char_aux :=
+        (forall ll f htl . (
+                    ((initDPrList f htl ll) = (dempty htl))
+                  | (exists l tail_l . (initDPrList f htl ll) = (dlst l empty (initDPrList f htl tail_l)))))
+
+    datatype-cases initDPrList_char_aux {
+      (ll as empty) =>
+        pick-any f htl
+          (!either (!chain [(initDPrList f htl ll) = (dempty htl)   [initDPrList_axioms]])
+                   (exists l tail_l . (initDPrList f htl ll) = (dlst l empty (initDPrList f htl tail_l))))
+    | (ll as (lst l1 tail_l1)) =>
+        pick-any f htl
+          let {_  := (!chain [(initDPrList f htl ll)
+                              = (dlst l1 empty (initDPrList f htl tail_l1))   [initDPrList_axioms]]);
+               ex := (!egen* (exists l tail_l . (initDPrList f htl ll) = (dlst l empty (initDPrList f htl tail_l)))
+                             [l1 tail_l1])}
+          (!either ((initDPrList f htl ll) = (dempty htl)) ex)
+    }
+
+    define initDPrList_characterization :=
+        (forall f htl ll . (
+                    ((initDPrList f htl ll) = (dempty htl))
+                  | (exists l tail_l . (initDPrList f htl ll) = (dlst l empty (initDPrList f htl tail_l)))))
+    conclude initDPrList_characterization
+        pick-any f htl ll
+            (!uspec* initDPrList_char_aux [ll f htl])
 
     ### insertNAt
     ### Purpose:
@@ -124,11 +148,11 @@ module DL_L_S {
     ###
     ### Parameters:
     ###     bucket::N            : primary bucket index where insertion begins.
-    ###                            Assumed to satisfy bucket < size(dlls).
+    ###                            Any natural number. It is reduced modulo
+    ###                            size(dlls) by `bucketIndex` below.
     ###     rv::N                : replication factor; insertion writes to rv+1
-    ###                            buckets in total. Assumed to satisfy
-    ###                            rv + 1 <= size(dlls) (no more replicas than
-    ###                            buckets, matching the read-side traversal).
+    ###                            buckets in total (every bucket once when
+    ###                            rv + 1 >= size(dlls)).
     ###     v::S                 : value of type S to be inserted.
     ###     dlls::(DLst (Lst S)) : distributed list representing buckets of values.
     ###
@@ -138,20 +162,59 @@ module DL_L_S {
     ###     Buckets not in this set are left unchanged.
     ###
     ### Implementation:
-    ###     The function is defined in two stages via the helpers above:
-    ###         (1) `insertNAt bucket (S rv) v dlls` performs all the insertions
-    ###             whose target lies within [bucket, size(dlls)), truncating at
+    ###     The function is defined in three stages via the helpers above:
+    ###         (0) `bucketIndex bucket dlls dlls zero` reduces `bucket` modulo
+    ###             size(dlls), walking the list exactly as `available_key` and
+    ###             `in` do.
+    ###         (1) `insertNAt idx (S rv) v dlls` performs all the insertions
+    ###             whose target lies within [idx, size(dlls)), truncating at
     ###             the end of the list.
-    ###         (2) `countWraps bucket (S rv) dlls` counts how many requested
+    ###         (2) `countWraps idx (S rv) dlls` counts how many requested
     ###             insertions overflow past the end and therefore need to wrap.
     ###         (3) A second `insertNAt zero <wrap-count> v _` on the partially
     ###             modified list applies the wrapped insertions at the front,
     ###             completing the modulo semantics.
+    ###
+    ### Why stage (0) is needed: `insertNAt` and `countWraps` wrap only once,
+    ### whereas `available_key` and `in` wrap every time they reach `dempty`, so
+    ### they read the bucket index modulo size(dlls). Without stage (0) a hash
+    ### value >= size(dlls) made the write window and the read window differ.
+    ### For example, with two buckets, rv = zero and bucket = 3, the value was
+    ### written to bucket 0 but looked up in bucket 1, so `query` answered
+    ### (SOME false) for a value that had just been inserted.
+
+    ### bucketIndex
+    ### Purpose:
+    ###     Reduce a bucket index modulo the number of buckets, by the same walk
+    ###     that `available_key` and `in` perform: one step per real bucket,
+    ###     restarting at the head of `o_dlls` when `dempty` is reached.
+    ###
+    ### Parameters:
+    ###     bucket::N              : remaining steps of the walk.
+    ###     dlls::(DLst (Lst S))   : suffix being walked.
+    ###     o_dlls::(DLst (Lst S)) : original list, used for the wrap-around.
+    ###     n::N                   : position of the head of `dlls` in `o_dlls`.
+    ###
+    ### Returns:
+    ###     The position in `o_dlls` where the walk stops, or zero when there are
+    ###     no buckets. The clauses are pairwise disjoint and exhaustive, with the
+    ###     same patterns as `available_key`.
+    declare bucketIndex: (S) [N (DLst (Lst S)) (DLst (Lst S)) N] -> N
+    assert bucketIndex_axioms := (fun [
+            (bucketIndex bucket (dempty htl0) (dempty htl) n) = zero
+            (bucketIndex zero (dlst lh lsts tail_dlls) o_dlls n) = n
+            (bucketIndex (S bucket) (dlst lh lsts tail_dlls) o_dlls n) =
+                (bucketIndex bucket tail_dlls o_dlls (S n))
+            (bucketIndex bucket (dempty htl) (dlst olh olsts otail_dlls) n) =
+                (bucketIndex bucket (dlst olh olsts otail_dlls)
+                                    (dlst olh olsts otail_dlls) zero)
+        ])
+
     declare insertDPrList: (S) [N N S (DLst (Lst S))] -> (DLst (Lst S))
     assert insertDPrList_axioms := (fun [
             (insertDPrList bucket rv v dlls) =
-                (insertNAt zero (countWraps bucket (S rv) dlls) v
-                    (insertNAt bucket (S rv) v dlls))
+                (insertNAt zero (countWraps (bucketIndex bucket dlls dlls zero) (S rv) dlls) v
+                    (insertNAt (bucketIndex bucket dlls dlls zero) (S rv) v dlls))
         ])
 
     ### Totality witnesses for insertDPrList.
@@ -176,8 +239,14 @@ module DL_L_S {
         pick-any lh tail_dlls v
         (!chain [
             (insertDPrList zero zero v (dlst lh empty tail_dlls))
+            = (insertNAt zero (countWraps (bucketIndex zero (dlst lh empty tail_dlls)
+                                                            (dlst lh empty tail_dlls) zero)
+                                          (S zero) (dlst lh empty tail_dlls)) v
+                (insertNAt (bucketIndex zero (dlst lh empty tail_dlls)
+                                             (dlst lh empty tail_dlls) zero)
+                           (S zero) v (dlst lh empty tail_dlls)))           [insertDPrList_axioms]
             = (insertNAt zero (countWraps zero (S zero) (dlst lh empty tail_dlls)) v
-                (insertNAt zero (S zero) v (dlst lh empty tail_dlls)))       [insertDPrList_axioms]
+                (insertNAt zero (S zero) v (dlst lh empty tail_dlls)))       [bucketIndex_axioms]
             = (insertNAt zero (countWraps zero zero tail_dlls) v
                 (insertNAt zero (S zero) v (dlst lh empty tail_dlls)))       [countWraps_axioms]
             = (insertNAt zero zero v
@@ -194,10 +263,14 @@ module DL_L_S {
         pick-any bucket rv v htl
         (!chain [
             (insertDPrList bucket rv v (dempty htl))
-            = (insertNAt zero (countWraps bucket (S rv) (dempty htl)) v
-                (insertNAt bucket (S rv) v (dempty htl)))                    [insertDPrList_axioms]
+            = (insertNAt zero (countWraps (bucketIndex bucket (dempty htl) (dempty htl) zero)
+                                          (S rv) (dempty htl)) v
+                (insertNAt (bucketIndex bucket (dempty htl) (dempty htl) zero)
+                           (S rv) v (dempty htl)))                          [insertDPrList_axioms]
+            = (insertNAt zero (countWraps zero (S rv) (dempty htl)) v
+                (insertNAt zero (S rv) v (dempty htl)))                      [bucketIndex_axioms]
             = (insertNAt zero (S rv) v
-                (insertNAt bucket (S rv) v (dempty htl)))                    [countWraps_axioms]
+                (insertNAt zero (S rv) v (dempty htl)))                      [countWraps_axioms]
             = (insertNAt zero (S rv) v (dempty htl))                         [insertNAt_axioms]
             = (dempty htl)                                                    [insertNAt_axioms]
         ])
@@ -327,18 +400,19 @@ module DL_L_S {
     conclude insertDPrList_preserves_locs
         pick-any bucket rv v dlls
             let {
-                inner_eq := (!uspec* insertNAt_preserves_locs [dlls bucket (S rv) v]);
+                idx      := (bucketIndex bucket dlls dlls zero);
+                inner_eq := (!uspec* insertNAt_preserves_locs [dlls idx (S rv) v]);
                 outer_eq := (!uspec* insertNAt_preserves_locs
-                                    [(insertNAt bucket (S rv) v dlls)
+                                    [(insertNAt idx (S rv) v dlls)
                                      zero
-                                     (countWraps bucket (S rv) dlls)
+                                     (countWraps idx (S rv) dlls)
                                      v])
             }
             (!chain [
                 (dlls_locs (insertDPrList bucket rv v dlls))
-                = (dlls_locs (insertNAt zero (countWraps bucket (S rv) dlls) v
-                                (insertNAt bucket (S rv) v dlls)))           [insertDPrList_axioms]
-                = (dlls_locs (insertNAt bucket (S rv) v dlls))               [outer_eq]
+                = (dlls_locs (insertNAt zero (countWraps idx (S rv) dlls) v
+                                (insertNAt idx (S rv) v dlls)))              [insertDPrList_axioms]
+                = (dlls_locs (insertNAt idx (S rv) v dlls))                  [outer_eq]
                 = (dlls_locs dlls)                                            [inner_eq]
             ])
 
@@ -793,8 +867,14 @@ module DL_L_S {
                 # form insertNAt zero (countWraps ...) v (dlst lh (lst v lsts) ...).
                 mod_eq := (!chain [
                     (insertDPrList zero rv v (dlst lh lsts tail_dlls))
+                    = (insertNAt zero (countWraps (bucketIndex zero (dlst lh lsts tail_dlls)
+                                                                    (dlst lh lsts tail_dlls) zero)
+                                                  (S rv) (dlst lh lsts tail_dlls)) v
+                        (insertNAt (bucketIndex zero (dlst lh lsts tail_dlls)
+                                                     (dlst lh lsts tail_dlls) zero)
+                                   (S rv) v (dlst lh lsts tail_dlls)))           [insertDPrList_axioms]
                     = (insertNAt zero (countWraps zero (S rv) (dlst lh lsts tail_dlls)) v
-                        (insertNAt zero (S rv) v (dlst lh lsts tail_dlls)))      [insertDPrList_axioms]
+                        (insertNAt zero (S rv) v (dlst lh lsts tail_dlls)))      [bucketIndex_axioms]
                     = (insertNAt zero (countWraps zero rv tail_dlls) v
                         (insertNAt zero (S rv) v (dlst lh lsts tail_dlls)))      [countWraps_axioms]
                     = (insertNAt zero (countWraps zero rv tail_dlls) v
@@ -961,15 +1041,233 @@ module DL_L_S {
     ### available_key depends on its dlls / o_dlls arguments only through
     ### their dlls_locs. The corollary below is then a one-step instantiation.
     ###
-    ### The intermediate is asserted for now (see TODO). The full proof is a
-    ### structural induction on dlls1 (with parallel structure derived for dlls2
-    ### via dlls_locs equality) and nested case-splits on B, R, and o_dlls's
-    ### structure — concretely tractable but tedious; deferring keeps momentum
-    ### toward the DHT correctness theorems while leaving an explicit proof
-    ### obligation in the assumption base.
+    ### The intermediate is PROVEN below, by induction on the bucket index B
+    ### and, for B = zero, on the replication counter R. For a fixed (B, R) the
+    ### `dlst` case is proven first (ak-dlst); the method ak-close then derives
+    ### the `dempty` cases from it, because the wrap-around clause reduces a
+    ### `dempty` walk to a `dlst` walk at the same (B, R).
+
+    ### same_locs: two bucket lists of the SAME element sort have the same
+    ### location projection. Defined by a single biconditional (conservative).
+    ### The proof below works with same_locs rather than with the equation
+    ### (dlls_locs d1) = (dlls_locs d2), because dlls_locs forgets the element
+    ### sort, and Athena then gives the two lists independent sort variables,
+    ### which blocks modus ponens against single-sorted hypotheses.
+    declare same_locs: (S) [(DLst (Lst S)) (DLst (Lst S))] -> Boolean
+    assert* same_locs_def := ((same_locs dlls1 dlls2) <==> ((dlls_locs dlls1) = (dlls_locs dlls2)))
+
+    ### locs_eq_cases (PROVEN): two bucket lists with the same location
+    ### projection are both empty, or both non-empty with the same head
+    ### location and tails that again have the same location projection.
+    define locs_eq_cases :=
+        (forall dlls1 dlls2 .
+            (same_locs dlls1 dlls2) ==>
+            ((exists htl htl0 . ((dlls1 = (dempty htl)) & (dlls2 = (dempty htl0))))
+             | (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                    ((dlls1 = (dlst lh lsts1 tail_dlls)) &
+                     ((dlls2 = (dlst lh lsts2 tail_dlls2)) &
+                      (same_locs tail_dlls tail_dlls2))))))
+    conclude locs_eq_cases
+      pick-any d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume hsl := (same_locs d1 d2)
+          let {heq    := (!chain-> [hsl ==> ((dlls_locs d1) = (dlls_locs d2)) [same_locs_def]]);
+               leftS  := (exists htl htl0 . ((d1 = (dempty htl)) & (d2 = (dempty htl0))));
+               rightS := (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                            ((d1 = (dlst lh lsts1 tail_dlls)) &
+                             ((d2 = (dlst lh lsts2 tail_dlls2)) &
+                              (same_locs tail_dlls tail_dlls2))));
+               goal   := (leftS | rightS)}
+          (!cases (!uspec DLst.dlst-no-junk d1)
+            assume e1 := (exists ?x1:Location . d1 = (dempty ?x1))
+              pick-witness h1 for e1 d1e
+              (!cases (!uspec DLst.dlst-no-junk d2)
+                assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                  pick-witness h2 for e2 d2e
+                    let {_ := (!both d1e d2e)}
+                    (!either (!egen* leftS [h1 h2]) rightS)
+                assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) .
+                                d2 = (dlst ?x1 ?x2 ?x3))
+                  pick-witnesses a2 s2 t2 for e2 d2e
+                    let {c  := (!chain [(lst a2 (dlls_locs t2))
+                                        = (dlls_locs (dlst a2 s2 t2))   [dlls_locs_axioms]
+                                        = (dlls_locs d2)                [d2e]
+                                        = (dlls_locs d1)                [heq]
+                                        = (dlls_locs (dempty h1))       [d1e]
+                                        = empty                         [dlls_locs_axioms]]);
+                         nc := (!uspec* Lst.lst-no-conf-empty [a2 (dlls_locs t2)])}
+                    (!from-complements goal (!sym c) nc))
+            assume e1 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) .
+                            d1 = (dlst ?x1 ?x2 ?x3))
+              pick-witnesses a1 s1 t1 for e1 d1e
+              (!cases (!uspec DLst.dlst-no-junk d2)
+                assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                  pick-witness h2 for e2 d2e
+                    let {c  := (!chain [(lst a1 (dlls_locs t1))
+                                        = (dlls_locs (dlst a1 s1 t1))   [dlls_locs_axioms]
+                                        = (dlls_locs d1)                [d1e]
+                                        = (dlls_locs d2)                [heq]
+                                        = (dlls_locs (dempty h2))       [d2e]
+                                        = empty                         [dlls_locs_axioms]]);
+                         nc := (!uspec* Lst.lst-no-conf-empty [a1 (dlls_locs t1)])}
+                    (!from-complements goal (!sym c) nc)
+                assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) .
+                                d2 = (dlst ?x1 ?x2 ?x3))
+                  pick-witnesses a2 s2 t2 for e2 d2e
+                    let {c   := (!chain [(lst a1 (dlls_locs t1))
+                                         = (dlls_locs (dlst a1 s1 t1))  [dlls_locs_axioms]
+                                         = (dlls_locs d1)               [d1e]
+                                         = (dlls_locs d2)               [heq]
+                                         = (dlls_locs (dlst a2 s2 t2))  [d2e]
+                                         = (lst a2 (dlls_locs t2))      [dlls_locs_axioms]]);
+                         inj := (!chain-> [c ==> ((a1 = a2) & ((dlls_locs t1) = (dlls_locs t2)))
+                                                                        [Lst.lst-no-conf-lst]]);
+                         aeq := (!left-and inj);
+                         teq := (!chain-> [(!right-and inj) ==> (same_locs t1 t2) [same_locs_def]]);
+                         d2' := (!chain [d2 = (dlst a2 s2 t2)           [d2e]
+                                            = (dlst a1 s2 t2)           [aeq]]);
+                         _   := (!both d1e (!both d2' teq))}
+                    (!either leftS (!egen* rightS [a1 s1 t1 s2 t2]))))
+
+    # (ak-inv B R): available_key at (B, R) sees its list arguments only
+    # through their location projections. Curried, so that each hypothesis
+    # is discharged by its own modus ponens.
+    define (ak-inv B R) :=
+        (forall dlls1 dlls2 . (same_locs dlls1 dlls2) ==>
+           forall o_dlls1 o_dlls2 . (same_locs o_dlls1 o_dlls2) ==>
+             ((available_key B R dlls1 o_dlls1) <==> (available_key B R dlls2 o_dlls2)))
+
+    # (ak-dlst B R): the same statement restricted to non-empty walked lists
+    # with the same head location.
+    define (ak-dlst B R) :=
+        (forall lh lsts1 tail_dlls lsts2 tail_dlls2 . (same_locs tail_dlls tail_dlls2) ==>
+           forall o_dlls1 o_dlls2 . (same_locs o_dlls1 o_dlls2) ==>
+             ((available_key B R (dlst lh lsts1 tail_dlls) o_dlls1)
+              <==> (available_key B R (dlst lh lsts2 tail_dlls2) o_dlls2)))
+
+    # ak-close: from (ak-dlst B R) in the assumption base, conclude (ak-inv B R).
+    # Both walked lists are empty or both are dlst (locs_eq_cases). In the empty
+    # case the original lists are both empty (false on both sides) or both dlst,
+    # and then the wrap-around clause reduces both sides to the dlst case.
+    define (ak-close B R dc) :=
+      pick-any d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume deq := (same_locs d1 d2)
+          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+            assume oeq := (same_locs o1 o2)
+              (!cases (!mp (!uspec* locs_eq_cases [d1 d2]) deq)
+                assume demp := (exists htl htl0 . ((d1 = (dempty htl)) & (d2 = (dempty htl0))))
+                  pick-witnesses h1 h2 for demp dw
+                    let {d1e := (!left-and dw);
+                         d2e := (!right-and dw)}
+                    (!cases (!mp (!uspec* locs_eq_cases [o1 o2]) oeq)
+                      assume oemp := (exists htl htl0 . ((o1 = (dempty htl)) & (o2 = (dempty htl0))))
+                        pick-witnesses g1 g2 for oemp ow
+                          let {o1e := (!left-and ow);
+                               o2e := (!right-and ow);
+                               f1  := (!chain [(available_key B R d1 o1)
+                                               <==> (available_key B R (dempty h1) (dempty g1)) [d1e o1e]
+                                               <==> false                                        [available_key_axioms]]);
+                               f2  := (!chain [(available_key B R d2 o2)
+                                               <==> (available_key B R (dempty h2) (dempty g2)) [d2e o2e]
+                                               <==> false                                        [available_key_axioms]])}
+                          (!chain [(available_key B R d1 o1)
+                                   <==> false                    [f1]
+                                   <==> (available_key B R d2 o2) [f2]])
+                      assume ocons := (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                                         ((o1 = (dlst lh lsts1 tail_dlls)) &
+                                          ((o2 = (dlst lh lsts2 tail_dlls2)) &
+                                           (same_locs tail_dlls tail_dlls2))))
+                        pick-witnesses a s1 t1 s2 t2 for ocons ow
+                          let {o1e  := (!left-and ow);
+                               o2e  := (!left-and (!right-and ow));
+                               teq  := (!right-and (!right-and ow));
+                               step := (!mp (!uspec* (!mp (!uspec* dc [a s1 t1 s2 t2]) teq) [o1 o2]) oeq)}
+                          (!chain [(available_key B R d1 o1)
+                                   <==> (available_key B R (dempty h1) (dlst a s1 t1))       [d1e o1e]
+                                   <==> (available_key B R (dlst a s1 t1) (dlst a s1 t1))    [available_key_axioms]
+                                   <==> (available_key B R (dlst a s1 t1) o1)                [o1e]
+                                   <==> (available_key B R (dlst a s2 t2) o2)                [step]
+                                   <==> (available_key B R (dlst a s2 t2) (dlst a s2 t2))    [o2e]
+                                   <==> (available_key B R (dempty h2) (dlst a s2 t2))       [available_key_axioms]
+                                   <==> (available_key B R d2 o2)                            [d2e o2e]]))
+                assume dcons := (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                                   ((d1 = (dlst lh lsts1 tail_dlls)) &
+                                    ((d2 = (dlst lh lsts2 tail_dlls2)) &
+                                     (same_locs tail_dlls tail_dlls2))))
+                  pick-witnesses a s1 t1 s2 t2 for dcons dw
+                    let {d1e  := (!left-and dw);
+                         d2e  := (!left-and (!right-and dw));
+                         teq  := (!right-and (!right-and dw));
+                         step := (!mp (!uspec* (!mp (!uspec* dc [a s1 t1 s2 t2]) teq) [o1 o2]) oeq)}
+                    (!chain [(available_key B R d1 o1)
+                             <==> (available_key B R (dlst a s1 t1) o1)   [d1e]
+                             <==> (available_key B R (dlst a s2 t2) o2)   [step]
+                             <==> (available_key B R d2 o2)               [d2e]]))
+
+    define [akc-empty-empty akc-zero-zero akc-alive akc-dead akc-step akc-wrap] :=
+           available_key_axioms
+
+    define available_key_locs_inv_all := (forall B . (forall R . (ak-inv B R)))
+
+    by-induction available_key_locs_inv_all {
+      zero =>
+        by-induction (forall R . (ak-inv zero R)) {
+          zero =>
+            let {dc := (ak-dlst zero zero);
+                 _  := conclude dc
+                         pick-any a:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                  s2:(Lst 'S) t2:(DLst (Lst 'S))
+                           assume (same_locs t1 t2)
+                             pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                               assume (same_locs o1 o2)
+                                 (!chain [(available_key zero zero (dlst a s1 t1) o1)
+                                          <==> (Location.alive a)                         [available_key_axioms]
+                                          <==> (available_key zero zero (dlst a s2 t2) o2) [available_key_axioms]])}
+            (!ak-close zero zero dc)
+        | (S n) =>
+            let {ih := (ak-inv zero n);
+                 dc := (ak-dlst zero (S n));
+                 _  := conclude dc
+                         pick-any a:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                  s2:(Lst 'S) t2:(DLst (Lst 'S))
+                           assume ht := (same_locs t1 t2)
+                             pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                               assume ho := (same_locs o1 o2)
+                                 let {ihi := (!mp (!uspec* (!mp (!uspec* ih [t1 t2]) ht) [o1 o2]) ho)}
+                                 (!two-cases
+                                   assume al := (Location.alive a)
+                                     let {e1 := (!mp (!uspec* akc-alive [a n s1 t1 o1]) al);
+                                          e2 := (!mp (!uspec* akc-alive [a n s2 t2 o2]) al)}
+                                     (!chain [(available_key zero (S n) (dlst a s1 t1) o1)
+                                              <==> true                                         [e1]
+                                              <==> (available_key zero (S n) (dlst a s2 t2) o2) [e2]])
+                                   assume dd := (~ Location.alive a)
+                                     let {e1 := (!mp (!uspec* akc-dead [a n s1 t1 o1]) dd);
+                                          e2 := (!mp (!uspec* akc-dead [a n s2 t2 o2]) dd)}
+                                     (!chain [(available_key zero (S n) (dlst a s1 t1) o1)
+                                              <==> (available_key zero n t1 o1)                 [e1]
+                                              <==> (available_key zero n t2 o2)                 [ihi]
+                                              <==> (available_key zero (S n) (dlst a s2 t2) o2) [e2]]))}
+            (!ak-close zero (S n) dc)
+        }
+    | (S n) =>
+        let {ih := (forall R . (ak-inv n R))}
+        pick-any R0:N
+          let {dc := (ak-dlst (S n) R0);
+               _  := conclude dc
+                       pick-any a:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                s2:(Lst 'S) t2:(DLst (Lst 'S))
+                         assume ht := (same_locs t1 t2)
+                           pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                             assume ho := (same_locs o1 o2)
+                               let {ihi := (!mp (!uspec* (!mp (!uspec* ih [R0 t1 t2]) ht) [o1 o2]) ho)}
+                               (!chain [(available_key (S n) R0 (dlst a s1 t1) o1)
+                                        <==> (available_key n R0 t1 o1)                 [available_key_axioms]
+                                        <==> (available_key n R0 t2 o2)                 [ihi]
+                                        <==> (available_key (S n) R0 (dlst a s2 t2) o2) [available_key_axioms]])}
+          (!ak-close (S n) R0 dc)
+    }
 
     # Intermediate: available_key sees its dlls / o_dlls only through dlls_locs.
-    # TODO: discharge by nested structural induction; presently a conjecture.
     define available_key_dlls_locs_inv :=
         (forall dlls1 dlls2 .
             (dlls_locs dlls1) = (dlls_locs dlls2) ==>
@@ -978,7 +1276,15 @@ module DL_L_S {
                 forall B R .
                     (available_key B R dlls1 o_dlls1) <==>
                     (available_key B R dlls2 o_dlls2))
-    assert available_key_dlls_locs_inv
+    conclude available_key_dlls_locs_inv
+      pick-any d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume h1 := ((dlls_locs d1) = (dlls_locs d2))
+          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+            assume h2 := ((dlls_locs o1) = (dlls_locs o2))
+              let {sd := (!chain-> [h1 ==> (same_locs d1 d2) [same_locs_def]]);
+                   so := (!chain-> [h2 ==> (same_locs o1 o2) [same_locs_def]])}
+              pick-any B0:N R0:N
+                (!mp (!uspec* (!mp (!uspec* available_key_locs_inv_all [B0 R0 d1 d2]) sd) [o1 o2]) so)
 
     # Corollary: available_key is invariant under insertDPrList when both
     # arguments are taken to be the same modified dlls (which is exactly the

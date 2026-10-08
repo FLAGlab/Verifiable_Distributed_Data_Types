@@ -56,7 +56,7 @@ declare typeCount :
     (fn (Set.Set SensorID) N)
 
 # Bridge kernels for service 3. The paper writes service-3 informally as
-# `replicaComposition(service1, service2)`, but services 1 and 2 do not
+# `replicaComposition(service2, service1)`, but services 1 and 2 do not
 # directly chain (different domains). The MVP realises the same idea as the
 # composition of two type-aligned kernels:
 #   groupByType : Set.Set (SensorID,   Temperature)
@@ -73,20 +73,23 @@ declare avgPerType :
 
 # SIV-B: Replica locations
 
-declare avgL0, avgL1, cntL0, cntL1 : Location
+declare avgL0, avgL1, avgL2, avgL3, cntL0, cntL1 : Location
 declare grpL0, grpL1, aptL0, aptL1 : Location
 
 
 # SIV-B: functionReplica instances
 
 define avgTempSvc     := (DFunction.functionReplica avgTemp     avgL0 avgL1)
+# A second, independently placed replica pair of the same kernel.
+define avgTempSvcB    := (DFunction.functionReplica avgTemp     avgL2 avgL3)
 define typeCountSvc   := (DFunction.functionReplica typeCount   cntL0 cntL1)
 define groupByTypeSvc := (DFunction.functionReplica groupByType grpL0 grpL1)
 define avgPerTypeSvc  := (DFunction.functionReplica avgPerType  aptL0 aptL1)
 
 # Composite service: telemetry -> grouped-by-type -> average-per-type.
+# As with Function.o, the outer replica comes first.
 define avgByTypeSvc :=
-    (DFunction.replicaComposition groupByTypeSvc avgPerTypeSvc)
+    (DFunction.replicaComposition avgPerTypeSvc groupByTypeSvc)
 
 
 # SIV-B: Service-level guarantees (derived)
@@ -119,7 +122,7 @@ conclude telemetry_convergence
 define avgTemp_fault_tolerance :=
     (forall ?x:(Set.Set (Pr SensorID Temperature)) .
         ((alive avgL0) | (alive avgL1))
-        ==> ((DFunction.apply avgTempSvc ?x) = (SOME (avgTemp at ?x))))
+        ==> ((avgTempSvc at ?x) = (SOME (avgTemp at ?x))))
 
 conclude avgTemp_fault_tolerance
   pick-any x:(Set.Set (Pr SensorID Temperature))
@@ -133,7 +136,7 @@ conclude avgTemp_fault_tolerance
 define typeCount_fault_tolerance :=
     (forall ?x:(Set.Set SensorID) .
         ((alive cntL0) | (alive cntL1))
-        ==> ((DFunction.apply typeCountSvc ?x) = (SOME (typeCount at ?x))))
+        ==> ((typeCountSvc at ?x) = (SOME (typeCount at ?x))))
 
 conclude typeCount_fault_tolerance
   pick-any x:(Set.Set SensorID)
@@ -146,13 +149,13 @@ conclude typeCount_fault_tolerance
 # Composite AvgByType service fault tolerance -- instance of
 # fault_tolerance_correctness_composition. Variable order in the upstream
 # theorem is (x f g lg0 lg1 lf0 lf1), where f is the inner function and g
-# the outer. For avgByTypeSvc = replicaComposition groupByTypeSvc avgPerTypeSvc,
+# the outer. For avgByTypeSvc = replicaComposition avgPerTypeSvc groupByTypeSvc,
 # f := groupByType and g := avgPerType.
 define avgByType_fault_tolerance :=
     (forall ?x:(Set.Set (Pr SensorID Temperature)) .
         (((alive grpL0) | (alive grpL1)) &
          ((alive aptL0) | (alive aptL1)))
-        ==> ((DFunction.apply avgByTypeSvc ?x)
+        ==> ((avgByTypeSvc at ?x)
               = (SOME ((avgPerType o groupByType) at ?x))))
 
 conclude avgByType_fault_tolerance
@@ -179,8 +182,8 @@ define avgTemp_eventual_consistency :=
          (CRDT.mailbox_equality ?mb0 ?mb1) & (?s0 = ?s1) &
          ((alive avgL0) | (alive avgL1)))
         ==>
-        ((DFunction.apply avgTempSvc (CRDT.apply_mailbox ?mb0 ?s0))
-          = (DFunction.apply avgTempSvc (CRDT.apply_mailbox ?mb1 ?s1))))
+        ((avgTempSvc at (CRDT.apply_mailbox ?mb0 ?s0))
+          = (avgTempSvc at (CRDT.apply_mailbox ?mb1 ?s1))))
 
 conclude avgTemp_eventual_consistency
   pick-any mb0:(Lst (Msg (Pr SensorID Temperature)))
@@ -215,9 +218,111 @@ conclude avgTemp_eventual_consistency
         applied1_sym := (!sym applied1)
       }
       (!chain [
-        (DFunction.apply avgTempSvc (CRDT.apply_mailbox mb0 s0))
+        (avgTempSvc at (CRDT.apply_mailbox mb0 s0))
         = (SOME (avgTemp at (CRDT.apply_mailbox mb0 s0)))   [applied0]
         = (SOME (avgTemp at (CRDT.apply_mailbox mb1 s1)))   [states_eq]
-        = (DFunction.apply avgTempSvc (CRDT.apply_mailbox mb1 s1))
+        = (avgTempSvc at (CRDT.apply_mailbox mb1 s1))
                                                             [applied1_sym]
       ])
+
+
+# Cross-module agreement of two DIFFERENT service replicas on two DIFFERENT
+# telemetry replicas. The DFunction module gives that the two placements of
+# avgTemp agree with the kernel whenever each has a live location (f ~ g);
+# the CRDT module gives that the two telemetry replicas converge (x ~ y).
+# Together: (apply avgTempSvc x) = (apply avgTempSvcB y).
+
+define avgTemp_replica_agreement :=
+    (forall ?mb0:(Lst (Msg (Pr SensorID Temperature)))
+            ?mb1:(Lst (Msg (Pr SensorID Temperature)))
+            ?s0:(Set.Set (Pr SensorID Temperature))
+            ?s1:(Set.Set (Pr SensorID Temperature)) .
+        (((CRDT.addOnly ?mb0) & (CRDT.addOnly ?mb1) &
+          (CRDT.mailbox_equality ?mb0 ?mb1) & (?s0 = ?s1)) &
+         (((alive avgL0) | (alive avgL1)) & ((alive avgL2) | (alive avgL3))))
+        ==>
+        ((avgTempSvc at (CRDT.apply_mailbox ?mb0 ?s0))
+          = (avgTempSvcB at (CRDT.apply_mailbox ?mb1 ?s1))))
+
+conclude avgTemp_replica_agreement
+  pick-any mb0:(Lst (Msg (Pr SensorID Temperature)))
+           mb1:(Lst (Msg (Pr SensorID Temperature)))
+           s0:(Set.Set (Pr SensorID Temperature))
+           s1:(Set.Set (Pr SensorID Temperature))
+    assume hyp := (((CRDT.addOnly mb0) & (CRDT.addOnly mb1) &
+                    (CRDT.mailbox_equality mb0 mb1) & (s0 = s1)) &
+                   (((alive avgL0) | (alive avgL1)) & ((alive avgL2) | (alive avgL3))))
+      let {
+        states_eq := (!mp (!uspec* CRDT.eventual_consistency [mb0 mb1 s0 s1])
+                          (!left-and hyp));
+        alive_a   := (!left-and (!right-and hyp));
+        alive_b   := (!right-and (!right-and hyp));
+        applied0  := (!mp (!uspec* DFunction.fault_tolerance_correctness
+                                   [(CRDT.apply_mailbox mb0 s0) avgTemp avgL0 avgL1])
+                          alive_a);
+        applied1  := (!mp (!uspec* DFunction.fault_tolerance_correctness
+                                   [(CRDT.apply_mailbox mb1 s1) avgTemp avgL2 avgL3])
+                          alive_b)
+      }
+      (!chain [
+        (avgTempSvc at (CRDT.apply_mailbox mb0 s0))
+        = (SOME (avgTemp at (CRDT.apply_mailbox mb0 s0)))    [applied0]
+        = (SOME (avgTemp at (CRDT.apply_mailbox mb1 s1)))    [states_eq]
+        = (avgTempSvcB at (CRDT.apply_mailbox mb1 s1))
+                                                             [applied1]
+      ])
+
+
+# Metadata availability -- instance of DHTable.dht_replication_correctness at
+# the metadata DHT configuration (hash metaHF, replication 1, location home):
+# if no window of two consecutive buckets is entirely dead, every table built
+# from that configuration is available.
+define metadata_available :=
+    (forall ?dht:(DHTable SensorID) ?dlls:(DLst (Lst SensorID)) .
+        (((DHTable.rep ?dht) = (dhtr metaHF (S zero) home ?dlls)) &
+         (exists ?lh:Location ?lsts:(Lst SensorID) ?tl:(DLst (Lst SensorID)) .
+              ?dlls = (dlst ?lh ?lsts ?tl)) &
+         (DL_L_S.no_consecutive_failures (S zero) ?dlls ?dlls))
+        ==> (DHTable.available ?dht))
+
+conclude metadata_available
+  pick-any dht:(DHTable SensorID) dlls:(DLst (Lst SensorID))
+    assume hyp := (((DHTable.rep dht) = (dhtr metaHF (S zero) home dlls)) &
+                   (exists ?lh:Location ?lsts:(Lst SensorID) ?tl:(DLst (Lst SensorID)) .
+                        dlls = (dlst ?lh ?lsts ?tl)) &
+                   (DL_L_S.no_consecutive_failures (S zero) dlls dlls))
+      (!mp (!uspec* DHTable.dht_replication_correctness [dht metaHF (S zero) home dlls]) hyp)
+
+
+# Sensor count over the metadata DHT -- composes the DHT `values` destructor
+# with the typeCount service. `values` always returns (SOME s) on a DHT
+# (DL_L_S.values_true_some), and the typeCount replica pair returns
+# (SOME (typeCount at s)) whenever one of its locations is alive. By
+# values_functional_correctness, s is the set of stored sensor IDs when the
+# table is available, which metadata_available derives from the replication
+# invariant.
+define typeCount_on_metadata :=
+    (forall ?dht:(DHTable SensorID) .
+        ((alive cntL0) | (alive cntL1))
+        ==> (exists ?s:(Set.Set SensorID) .
+                (((DHTable.values ?dht) = (SOME ?s)) &
+                 ((typeCountSvc at ?s) = (SOME (typeCount at ?s))))))
+
+conclude typeCount_on_metadata
+  pick-any dht:(DHTable SensorID)
+    assume ca := ((alive cntL0) | (alive cntL1))
+      let {r := (!uspec DHTable.rep_e dht)}
+      pick-witnesses hf rv htl dlls for r rdef
+        let {ts := (!uspec* DL_L_S.values_true_some [dlls Set.null:(Set.Set SensorID)])}
+        pick-witness s for ts sdef
+          let {v  := (!chain [(DHTable.values dht)
+                              = (DHTable.values_aux (DHTable.rep dht))     [DHTable.values_axiom]
+                              = (DHTable.values_aux (dhtr hf rv htl dlls)) [rdef]
+                              = (DL_L_S.values dlls Set.null true)         [DHTable.values_aux_axioms]
+                              = (SOME s)                                   [sdef]]);
+               ap := (!mp (!uspec* DFunction.fault_tolerance_correctness [s typeCount cntL0 cntL1]) ca);
+               _  := (!both v ap)}
+          (!egen (exists ?s:(Set.Set SensorID) .
+                    (((DHTable.values dht) = (SOME ?s)) &
+                     ((typeCountSvc at ?s) = (SOME (typeCount at ?s)))))
+                 s)

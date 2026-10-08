@@ -5,7 +5,11 @@ load "dpair.ath"
 structure (DHTable S) := (dht_empty  ll:(Lst Location) hf:(fn S N) rv:N htl:Location) |
                          (dht_insert (DHTable S) S)
 
-datatype (DHTRep S) := (dhtr hf:(fn S N) rv:N htl:Location buckets:(DLst (Lst S)))
+# Selector names must differ from those of DHTable. Athena resolves a selector
+# name declared by two datatypes differently depending on how the file is
+# loaded: `athena sensor_app.ath` binds it to the last declaration, while
+# `athena-run` (a `load` from standard input) binds it to the first.
+datatype (DHTRep S) := (dhtr rep_hf:(fn S N) rep_rv:N rep_htl:Location buckets:(DLst (Lst S)))
 # rv must always be > 0
 
 
@@ -20,7 +24,7 @@ module DHTable {
 
 	# Each of this asserts gives axioms for each of the selectors of both data types
 	assert dht_se_axioms := (selector-axioms "DHTable")
-	assert dhtr_se_axioms := (selector-axioms "DHTable")
+	assert dhtr_se_axioms := (selector-axioms "DHTRep")
 
 	define [s s0] := [?s:(Set.Set 'S) ?s0:(Set.Set 'S)]
 	define [dht_no_conf dht_no_junk] := dht_st_axioms

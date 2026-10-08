@@ -688,22 +688,30 @@ module HTable {
 	#
 	# When are two hashtables equal?
 
-	assert* ht-equal-axiom := (t = t' <==> ((hf t) = (hf t') &
-						(values t) = (values t')))
+	# Equality on HTable is the built-in identity. An earlier version asserted
+	#   ht-equal-axiom := (t = t' <==> ((hf t) = (hf t') & (values t) = (values t')))
+	# Its right-to-left direction is false in the intended model: inserting a
+	# then b, and b then a, into the same bucket gives two tables with the same
+	# hf and the same values whose representations differ in bucket order, so
+	# the axiom together with congruence of `rep` would force a = b. The two
+	# lemmas below are the left-to-right direction, which holds by congruence
+	# of = alone.
 
 	define ht-equal-hf :=
 	(forall t t' . (t = t' ==> (hf t) = (hf t')))
 
 	conclude ht-equal-hf
-	pick-any t t'
-		(!chain [(t = t') ==> ((hf t) = (hf t'))  [ht-equal-axiom]])
+	pick-any t:(HTable 'S) t':(HTable 'S)
+		assume teq := (t = t')
+			(!chain [(hf t) = (hf t')  [teq]])
 
 	define ht-equal-values :=
 	(forall t t' . (t = t' ==> (values t) = (values t')))
 
 	conclude ht-equal-values
-	pick-any t t'
-		(!chain [(t = t') ==> ((values t) = (values t'))  [ht-equal-axiom]])
+	pick-any t:(HTable 'S) t':(HTable 'S)
+		assume teq := (t = t')
+			(!chain [(values t) = (values t')  [teq]])
 
 	# cvarela: an example of when an equality axiom introduces an
 	# inconsistency in the assumption base:
