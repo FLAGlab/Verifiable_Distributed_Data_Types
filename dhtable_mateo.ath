@@ -298,57 +298,51 @@ module DHTable {
 	
 	define [b0 b1] := [?b0:Boolean ?b1:Boolean]
 
-	# define query_fc_insert :=
-	# 	(forall dht v0 v1 . (available (dht_insert dht v0)) ==>
-	# 		exists b0 b1 . (
-	# 			((query (dht_insert dht v0) v1) = (SOME b0)) &
-	# 			((query dht v1) = (SOME b1)) &
-	# 			(b0 <==> ((v0 = v1) | b1))
-	# 		))
-	### query_functional_correctness (TODO — asserted, not yet proved)
-	###
-	### After the `available` change above, `available dht` no longer guarantees
-	### bucket-aliveness for arbitrary v. The theorem now takes the relevant
-	### `available_key` fact as an explicit per-v hypothesis (the same change
-	### we already made to query_fc_empty), and pulls the rep witnesses
-	### (hf rv htl dlls) into the outer forall so they're in scope for both
-	### the hypothesis and the empty-disjunct's existential.
-	###
-	### Proof obligation (deferred):
-	###   * Empty branch (dht = dht_empty ll hf rv htl): follows from
-	###     query_fc_empty using the available_key hypothesis directly.
-	###   * Insert branch (dht = dht_insert dt v0):
-	###       - case v = v0: needs in_after_insert_self at an arbitrary
-	###         bucket. Only the bucket=0 case is proven, in dlls.ath:630;
-	###         see the status block at dlls.ath:668-701 for the missing
-	###         size / `<` infrastructure.
-	###       - case v ≠ v0: needs in_after_insert_other — currently
-	###         asserted as a TODO in dlls.ath:720.
-	###       - either case: available_key_insert_invariant is proven
-	###         (dlls.ath:776), modulo its asserted intermediate
-	###         available_key_dlls_locs_inv.
-	### Direct induction on dht is the cleaner path; Carlos's canonical /
-	### ht-equiv bridge does not lift to rv+1-fold replication (no bijection
-	### between DHTable and HTable when each value lives in many buckets).
-	# TODO: discharge by induction on dht once in_after_insert_self is proven
-	# for an arbitrary bucket and in_after_insert_other is upgraded from an
-	# asserted conjecture to a proven theorem.
-	define query_functional_correctness :=
+	### query_rep (PROVEN): on a table whose location is alive and whose window
+	### for v is available, query returns whether v is in that window. On an
+	### empty table both sides are (SOME false), by in_init_false.
+	define query_rep :=
 		(forall dht v hf rv htl dlls .
-			(rep dht = (dhtr hf rv htl dlls) &
-			 (available dht) &
-			 (available_key (hf at v) rv dlls dlls))
-			==>
-			(
-				(exists ll . (dht = (dht_empty ll hf rv htl) &
-				              (query dht v) = (SOME false)))
-				| (exists dht0 v0 b b0 . (
-						dht = (dht_insert dht0 v0) &
-						(query dht v)  = (SOME b) &
-						(query dht0 v) = (SOME b0) &
-						(b <==> ((v = v0) | b0))))
-			))
-	assert query_functional_correctness
+			(((rep dht) = (dhtr hf rv htl dlls)) & ((Location.alive htl) &
+			 (available_key (hf at v) rv dlls dlls)))
+			==> ((query dht v) = (SOME (in (hf at v) rv dlls dlls v))))
+	datatype-cases query_rep {
+	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) & ((Location.alive htl) &
+		               (available_key (hf at v) rv dlls dlls)))
+			let { r   := (!left-and hyp);
+			      alv := (!left-and (!right-and hyp));
+			      eq  := (!chain [ (dhtr hf rv htl dlls)
+			                     = (rep dht)                                       [r]
+			                     = (dhtr hf1 rv1 htl1 (initDPrList hf1 htl1 ll1))  [rep_axioms] ]);
+			      fs  := (!chain-> [ eq ==> ((hf = hf1) & (rv = rv1) & (htl = htl1) &
+			                                 (dlls = (initDPrList hf1 htl1 ll1)))  [dhtr_no_conf] ]);
+			      htl_eq  := (!chain-> [fs ==> (htl = htl1)                         [prop-taut]]);
+			      dlls_eq := (!chain-> [fs ==> (dlls = (initDPrList hf1 htl1 ll1))  [prop-taut]]);
+			      alv1 := (!chain-> [ alv ==> (Location.alive htl1) [htl_eq] ]);
+			      p_iff := (!uspec* in_init_false [(hf at v) rv ll1 hf1 v htl1]);
+			      not_p := (!chain-> [ p_iff
+			                 ==> (~ (in (hf at v) rv (initDPrList hf1 htl1 ll1) (initDPrList hf1 htl1 ll1) v)) [prop-taut] ]);
+			      p_false := (!false-bool not_p) }
+			(!chain [ (query (dht_empty ll1 hf1 rv1 htl1) v)
+			        = (SOME false)                                                                       [query_axioms]
+			        = (SOME (in (hf at v) rv (initDPrList hf1 htl1 ll1) (initDPrList hf1 htl1 ll1) v))  [p_false]
+			        = (SOME (in (hf at v) rv dlls dlls v))                                               [dlls_eq] ])
+	| (dht as (dht_insert dht0 v0)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) & ((Location.alive htl) &
+		               (available_key (hf at v) rv dlls dlls)))
+			let { r := (!left-and hyp);
+			      g := (!right-and hyp) }
+			(!chain [ (query (dht_insert dht0 v0) v)
+			        = (query_aux (rep (dht_insert dht0 v0)) v)     [query_axioms]
+			        = (query_aux (dhtr hf rv htl dlls) v)          [r]
+			        = (SOME (in (hf at v) rv dlls dlls v))         [query_aux_axioms] ])
+	}
+
+	# query_functional_correctness and dht_functional_correctness are stated
+	# and proven after the values lemmas below.
 
 
 	declare values_aux : (S) [(DHTRep S)]  -> (Option (Set.Set S))
@@ -500,24 +494,214 @@ module DHTable {
 							[dht0 v0 sw sw0]))
 	}
 
+	### query_functional_correctness (PROVEN)
+	###
+	### For a table whose location is alive (implied by `available dht`) and a
+	### key v whose window is available, query behaves like membership in a set:
+	### an empty table answers false, and after inserting v0 the answer for v is
+	### (v = v0) or the previous answer. The insertion case is
+	### query_fc_insert, which rests on DL_L_S.in_after_insert_self (v = v0) and
+	### DL_L_S.in_after_insert_other (v =/= v0).
+	define query_fc_empty_case :=
+		(forall ll1 hf1 rv1 htl1 v hf rv htl dlls .
+			(((rep (dht_empty ll1 hf1 rv1 htl1)) = (dhtr hf rv htl dlls)) &
+			 (available (dht_empty ll1 hf1 rv1 htl1)))
+			==> (((dht_empty ll1 hf1 rv1 htl1) = (dht_empty ll1 hf rv htl)) &
+			     (((query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME false)) &
+			      ((values (dht_empty ll1 hf1 rv1 htl1)) = (SOME Set.null)))))
+	conclude query_fc_empty_case
+		pick-any ll1:(Lst Location) hf1:(fn 'S N) rv1:N htl1:Location v:'S
+		         hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep (dht_empty ll1 hf1 rv1 htl1)) = (dhtr hf rv htl dlls)) &
+		               (available (dht_empty ll1 hf1 rv1 htl1)))
+			let { r   := (!left-and hyp);
+			      av  := (!right-and hyp);
+			      eq  := (!chain [ (dhtr hf rv htl dlls)
+			                     = (rep (dht_empty ll1 hf1 rv1 htl1))              [r]
+			                     = (dhtr hf1 rv1 htl1 (initDPrList hf1 htl1 ll1))  [rep_axioms] ]);
+			      fs  := (!chain-> [ eq ==> ((hf = hf1) & (rv = rv1) & (htl = htl1) &
+			                                 (dlls = (initDPrList hf1 htl1 ll1)))  [dhtr_no_conf] ]);
+			      hf_eq  := (!chain-> [fs ==> (hf = hf1)   [prop-taut]]);
+			      rv_eq  := (!chain-> [fs ==> (rv = rv1)   [prop-taut]]);
+			      htl_eq := (!chain-> [fs ==> (htl = htl1) [prop-taut]]);
+			      alv1 := (!chain-> [ av ==> (Location.alive htl1) [available_axioms] ]);
+			      e1 := (!chain [ (dht_empty ll1 hf1 rv1 htl1) = (dht_empty ll1 hf rv htl) [hf_eq rv_eq htl_eq] ]);
+			      q  := (!chain [ (query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME false) [query_axioms] ]);
+			      vl := (!mp (!uspec* values_fc_empty [ll1 hf1 rv1 htl1]) alv1) }
+			(!both e1 (!both q vl))
+
+	define query_fc_insert :=
+		(forall dht0 v0 v hf rv htl dlls .
+			(((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls)) &
+			 ((available (dht_insert dht0 v0)) &
+			  (available_key (hf at v) rv dlls dlls)))
+			==> (exists b b0 . (((query (dht_insert dht0 v0) v) = (SOME b)) & (((query dht0 v) = (SOME b0)) & (b <==> ((v = v0) | b0))))))
+	conclude query_fc_insert
+		pick-any dht0:(DHTable 'S) v0:'S v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep (dht_insert dht0 v0)) = (dhtr hf rv htl dlls)) &
+		               ((available (dht_insert dht0 v0)) &
+		                (available_key (hf at v) rv dlls dlls)))
+			let { r   := (!left-and hyp);
+			      av  := (!left-and (!right-and hyp));
+			      ak  := (!right-and (!right-and hyp));
+			      alv := (!mp (!uspec* available_alive [(dht_insert dht0 v0) hf rv htl dlls]) (!both r av));
+			      qb  := (!mp (!uspec* query_rep [(dht_insert dht0 v0) v hf rv htl dlls]) (!both r (!both alv ak)));
+			      ex  := (!uspec rep_e dht0) }
+			pick-witnesses hf0 rv0 htl0 dlls0 for ex rep0
+			let { eq := (!chain [ (dhtr hf rv htl dlls)
+			                    = (rep (dht_insert dht0 v0))                                     [r]
+			                    = (dhtr hf0 rv0 htl0 (insertDPrList (hf0 at v0) rv0 v0 dlls0))   [rep_axioms] ]);
+			      fs := (!chain-> [ eq ==> ((hf = hf0) & (rv = rv0) & (htl = htl0) &
+			                                (dlls = (insertDPrList (hf0 at v0) rv0 v0 dlls0)))  [dhtr_no_conf] ]);
+			      hf_eq   := (!chain-> [fs ==> (hf = hf0)   [prop-taut]]);
+			      rv_eq   := (!chain-> [fs ==> (rv = rv0)   [prop-taut]]);
+			      htl_eq  := (!chain-> [fs ==> (htl = htl0) [prop-taut]]);
+			      dlls_eq := (!chain-> [fs ==> (dlls = (insertDPrList (hf0 at v0) rv0 v0 dlls0)) [prop-taut]]);
+			      av_iff := (!chain-> [ rep0
+			                  ==> ((available (dht_insert dht0 v0)) <==>
+			                       ((available dht0) & (available_key (hf0 at v0) rv0 dlls0 dlls0))) [available_axioms] ]);
+			      av0  := (!chain-> [ (!both av av_iff) ==> (available dht0) [prop-taut] ]);
+			      ak1  := (!chain-> [ ak ==> (available_key (hf0 at v) rv0 (insertDPrList (hf0 at v0) rv0 v0 dlls0)
+			                                                         (insertDPrList (hf0 at v0) rv0 v0 dlls0)) [hf_eq rv_eq dlls_eq] ]);
+			      akinv := (!uspec* DL_L_S.available_key_insert_invariant [(hf0 at v0) rv0 v0 dlls0 (hf0 at v) rv0]);
+			      ak0  := (!chain-> [ ak1 ==> (available_key (hf0 at v) rv0 dlls0 dlls0) [akinv] ]);
+			      alv0 := (!chain-> [ alv ==> (Location.alive htl0) [htl_eq] ]);
+			      qb0  := (!mp (!uspec* query_rep [dht0 v hf0 rv0 htl0 dlls0]) (!both rep0 (!both alv0 ak0)));
+			      bconv := (!chain [ (in (hf at v) rv dlls dlls v)
+			                       <==> (in (hf0 at v) rv0 (insertDPrList (hf0 at v0) rv0 v0 dlls0)
+			                                               (insertDPrList (hf0 at v0) rv0 v0 dlls0) v) [hf_eq rv_eq dlls_eq] ]);
+			      iffb := (!two-cases
+			                assume e := (v = v0)
+			                  (!cases (!uspec dlst-no-junk dlls0)
+			                    assume is_empty := (exists htl . dlls0 = (dempty htl))
+			                      pick-witness wh for is_empty weq
+			                        let { _ := (!chain-> [ ak0 ==> (available_key (hf0 at v) rv0 (dempty wh) (dempty wh)) [weq]
+			                                                   ==> false                                                  [available_key_axioms] ]) }
+			                        (!from-false ((in (hf at v) rv dlls dlls v) <==> ((v = v0) | (in (hf0 at v) rv0 dlls0 dlls0 v))))
+			                    assume is_dlst := (exists lh lsts tl . dlls0 = (dlst lh lsts tl))
+			                      let { self  := (!mp (!uspec* DL_L_S.in_after_insert_self [(hf0 at v0) rv0 v0 dlls0]) is_dlst);
+			                            self' := (!chain-> [ self ==> (in (hf0 at v) rv0 (insertDPrList (hf0 at v0) rv0 v0 dlls0)
+			                                                                         (insertDPrList (hf0 at v0) rv0 v0 dlls0) v) [e] ]);
+			                            lhs   := (!mp (!right-iff bconv) self') }
+			                      (!equiv (assume h1 := (in (hf at v) rv dlls dlls v)
+			                                 (!either e (in (hf0 at v) rv0 dlls0 dlls0 v)))
+			                              (assume h2 := ((v = v0) | (in (hf0 at v) rv0 dlls0 dlls0 v))
+			                                 (!claim lhs))))
+			                assume ne := (~ (v = v0))
+			                  let { io := (!mp (!uspec* DL_L_S.in_after_insert_other [(hf0 at v0) (hf0 at v) rv0 v v0 dlls0]) ne);
+			                        t1 := (!chain [ (in (hf at v) rv dlls dlls v)
+			                                      <==> (in (hf0 at v) rv0 (insertDPrList (hf0 at v0) rv0 v0 dlls0)
+			                                                              (insertDPrList (hf0 at v0) rv0 v0 dlls0) v) [bconv]
+			                                      <==> (in (hf0 at v) rv0 dlls0 dlls0 v)                              [io] ]) }
+			                  (!equiv (assume h1 := (in (hf at v) rv dlls dlls v)
+			                             (!either (v = v0) (!mp (!left-iff t1) h1)))
+			                          (assume h2 := ((v = v0) | (in (hf0 at v) rv0 dlls0 dlls0 v))
+			                             (!mp (!right-iff t1) (!dsyl h2 ne)))));
+			      conj := (!both qb (!both qb0 iffb)) }
+			(!egen* (exists b b0 . (((query (dht_insert dht0 v0) v) = (SOME b)) & (((query dht0 v) = (SOME b0)) & (b <==> ((v = v0) | b0)))))
+			        [(in (hf at v) rv dlls dlls v) (in (hf0 at v) rv0 dlls0 dlls0 v)])
+
+	define query_functional_correctness :=
+		(forall dht v hf rv htl dlls .
+			(((rep dht) = (dhtr hf rv htl dlls)) &
+			 ((available dht) &
+			  (available_key (hf at v) rv dlls dlls)))
+			==>
+			((exists ll . ((dht = (dht_empty ll hf rv htl)) &
+			               ((query dht v) = (SOME false))))
+			 | (exists dht0 v0 b b0 . ((dht = (dht_insert dht0 v0)) &
+			                           (((query dht v) = (SOME b)) &
+			                            (((query dht0 v) = (SOME b0)) &
+			                             (b <==> ((v = v0) | b0))))))))
+	datatype-cases query_functional_correctness {
+	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
+		               ((available dht) & (available_key (hf at v) rv dlls dlls)))
+			let { ec := (!mp (!uspec* query_fc_empty_case [ll1 hf1 rv1 htl1 v hf rv htl dlls])
+			                 (!both (!left-and hyp) (!left-and (!right-and hyp))));
+			      c  := (!both (!left-and ec) (!left-and (!right-and ec))) }
+			(!either (!egen (exists ll . (((dht_empty ll1 hf1 rv1 htl1) = (dht_empty ll hf rv htl)) &
+			                              ((query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME false)))) ll1)
+			         (exists dht1 v1 b b0 . (((dht_empty ll1 hf1 rv1 htl1) = (dht_insert dht1 v1)) &
+			                                 (((query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME b)) &
+			                                  (((query dht1 v) = (SOME b0)) & (b <==> ((v = v1) | b0)))))))
+	| (dht as (dht_insert dht0 v0)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
+		               ((available dht) & (available_key (hf at v) rv dlls dlls)))
+			let { ins := (!mp (!uspec* query_fc_insert [dht0 v0 v hf rv htl dlls]) hyp) }
+			pick-witnesses wb wb0 for ins insd
+			let { c := (!both (!reflex (dht_insert dht0 v0)) insd) }
+			(!either (exists ll . (((dht_insert dht0 v0) = (dht_empty ll hf rv htl)) &
+			                       ((query (dht_insert dht0 v0) v) = (SOME false))))
+			         (!egen* (exists dht1 v1 b b0 . (((dht_insert dht0 v0) = (dht_insert dht1 v1)) &
+			                                         (((query (dht_insert dht0 v0) v) = (SOME b)) &
+			                                          (((query dht1 v) = (SOME b0)) & (b <==> ((v = v1) | b0))))))
+			                 [dht0 v0 wb wb0]))
+	}
+
+	### dht_functional_correctness (PROVEN)
+	###
+	### An earlier version had only `available dht` as hypothesis. That
+	### version was false: `available` constrains the windows of the inserted
+	### values only, so a key whose window is dead gets NONE from query, while
+	### the conclusion promised (SOME b) for every key. Together with the other
+	### axioms it derived `false` (review_checks/m5_dht_functional_correctness_false.ath).
+	### The sentence now carries the same per-key hypotheses as
+	### query_functional_correctness, and it follows from that theorem and
+	### values_functional_correctness.
 	define dht_functional_correctness :=
-		(forall dht v . (available dht ==>
-			(exists ll hf rv htl .
-				(dht = (dht_empty ll hf rv htl) &
-				((query dht v) = (SOME false)) &
-				(values dht = (SOME Set.null)) )) |
-			(exists dht0 v0 b b0 s s0 .
-				(dht = (dht_insert dht0 v0) &
-				((query dht v)  = (SOME b) &
-				(query dht0 v) = (SOME b0) &
-				(b <==> ((v = v0) | b0))) &
-				((values dht) = (SOME s) &
-				(values dht0) = (SOME s0) &
-				(s = (Set.insert v0 s0))))
-			)))
-				# & (hf dht = hf dht0)
-	# Asserted (paper cites this sentence in Section III-D; full deduction deferred).
-	assert dht_functional_correctness
+		(forall dht v hf rv htl dlls .
+			(((rep dht) = (dhtr hf rv htl dlls)) &
+			 ((available dht) &
+			  (available_key (hf at v) rv dlls dlls)))
+			==>
+			((exists ll . ((dht = (dht_empty ll hf rv htl)) &
+			               (((query dht v) = (SOME false)) &
+			                ((values dht) = (SOME Set.null)))))
+			 | (exists dht0 v0 b b0 s s0 .
+			      ((dht = (dht_insert dht0 v0)) &
+			       ((((query dht v) = (SOME b)) &
+			         (((query dht0 v) = (SOME b0)) & (b <==> ((v = v0) | b0)))) &
+			        (((values dht) = (SOME s)) &
+			         (((values dht0) = (SOME s0)) & (s = (Set.insert v0 s0)))))))))
+	datatype-cases dht_functional_correctness {
+	  (dht as (dht_empty ll1 hf1 rv1 htl1)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
+		               ((available dht) & (available_key (hf at v) rv dlls dlls)))
+			let { ec := (!mp (!uspec* query_fc_empty_case [ll1 hf1 rv1 htl1 v hf rv htl dlls])
+			                 (!both (!left-and hyp) (!left-and (!right-and hyp)))) }
+			(!either (!egen (exists ll . (((dht_empty ll1 hf1 rv1 htl1) = (dht_empty ll hf rv htl)) &
+			                              (((query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME false)) &
+			                               ((values (dht_empty ll1 hf1 rv1 htl1)) = (SOME Set.null))))) ll1)
+			         (exists dht1 v1 b b0 s s0 .
+			            (((dht_empty ll1 hf1 rv1 htl1) = (dht_insert dht1 v1)) &
+			             ((((query (dht_empty ll1 hf1 rv1 htl1) v) = (SOME b)) &
+			               (((query dht1 v) = (SOME b0)) & (b <==> ((v = v1) | b0)))) &
+			              (((values (dht_empty ll1 hf1 rv1 htl1)) = (SOME s)) &
+			               (((values dht1) = (SOME s0)) & (s = (Set.insert v1 s0))))))))
+	| (dht as (dht_insert dht0 v0)) =>
+		pick-any v:'S hf:(fn 'S N) rv:N htl:Location dlls:(DLst (Lst 'S))
+		assume hyp := (((rep dht) = (dhtr hf rv htl dlls)) &
+		               ((available dht) & (available_key (hf at v) rv dlls dlls)))
+			let { ins := (!mp (!uspec* query_fc_insert [dht0 v0 v hf rv htl dlls]) hyp);
+			      vin := (!mp (!uspec* values_fc_insert [dht0 v0]) (!left-and (!right-and hyp))) }
+			pick-witnesses wb wb0 for ins insd
+			pick-witnesses ws ws0 for vin vind
+			let { c := (!both (!reflex (dht_insert dht0 v0)) (!both insd vind)) }
+			(!either (exists ll . (((dht_insert dht0 v0) = (dht_empty ll hf rv htl)) &
+			                       (((query (dht_insert dht0 v0) v) = (SOME false)) &
+			                        ((values (dht_insert dht0 v0)) = (SOME Set.null)))))
+			         (!egen* (exists dht1 v1 b b0 s s0 .
+			                    (((dht_insert dht0 v0) = (dht_insert dht1 v1)) &
+			                     ((((query (dht_insert dht0 v0) v) = (SOME b)) &
+			                       (((query dht1 v) = (SOME b0)) & (b <==> ((v = v1) | b0)))) &
+			                      (((values (dht_insert dht0 v0)) = (SOME s)) &
+			                       (((values dht1) = (SOME s0)) & (s = (Set.insert v1 s0)))))))
+			                 [dht0 v0 wb wb0 ws ws0]))
+	}
 
 
 	### dht_replication_correctness  (proven by induction on dht, through the
@@ -590,9 +774,6 @@ module DHTable {
 		pick-any n:N rv1:N v0:'S dlls0:(DLst (Lst 'S))
 			(!uspec* DL_L_S.ncf_insert_inv [n rv1 v0 dlls0])
 
-	### Auxiliary lemma (ASSERTED): the "every-position implies
-	### this-position" lookup. If every (rv+1)-window in a non-empty
-	### dlls is alive, then so is the window at any chosen bucket index.
 	### Auxiliary lemma (PROVED): the "every-position implies this-position"
 	### lookup. If every (rv+1)-window in a non-empty dlls is alive, then so is
 	### the window at any chosen bucket index. It is a one-step corollary of

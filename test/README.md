@@ -9,17 +9,48 @@ error show up when a definition or a theorem is run on a concrete example.
 
 ```sh
 cd Code/test
-./run_tests.sh              # every t_*.ath, plus ../dlls_ncf_examples and ../dlls_index_examples
-./run_tests.sh t_dpair      # only the named tests
+./run_tests.sh                    # quick mode: every t_*.ath, plus ../dlls_ncf_examples and ../dlls_index_examples
+./run_tests.sh t_dpair            # quick mode, only the named tests
+./run_tests.sh --night            # night mode, every test (hours)
+nohup ./run_tests.sh --night > night.out 2>&1 &   # leave it running overnight
 ```
 
 `ATHENA_HOME` must be set and `athena` must be on `PATH` (see `~/.zshrc`). A test passes when
 its output has no `error` line. Each test loads the whole development (`../sensor_app`), so
 it runs against exactly the sentences the paper uses. Tests run with
-`echo quit | athena <file>`, which is safe to run next to other Athena processes.
+`echo quit | athena <file>`. The log of every test is kept in `logs/<date>_<mode>/`, and the
+runner prints a `RUN` line when each test starts.
 
-The whole suite takes about 20 minutes. Most of it is `t_consistency.ath` (about 10 minutes)
-and `t_dht_running.ath` (about 1 minute).
+Run only one suite at a time, and no other Athena process that calls Vampire. Athena writes its
+Vampire input and output files to `$ATHENA_HOME/tmp/vamp.*.N`, numbered by a counter that
+starts at 0 in every Athena process, so two such processes overwrite each other's files.
+
+### Quick and night modes
+
+The limits are in `mode.ath`. The checked-in file holds the quick values. `--night` writes the
+night values into `mode.ath` for the run and restores the quick ones at the end, so a quick and
+a night run must not overlap.
+
+| Setting | Quick | Night | Used by |
+| --- | --- | --- | --- |
+| `vp-time` | 60 s | 300 s | every concrete Vampire call |
+| `consistency-time` | 60 s | 600 s | each module in `t_consistency.ath` |
+| `full-ab-time` | skipped | 1800 s | all definitions together, and the whole assumption base |
+| `enum-time` | 30 s | 120 s | each step of `t_enum_dht.ath` |
+| `enum-ring`, `enum-rv`, `enum-key` | 3, 2, 3 | 4, 3, 5 | groups 1 to 4 of `t_enum_dht.ath` |
+| `enum-query-ring`, `-rv`, `-key` | 2, 1, 2 | 3, 1, 2 | groups 5 and 7 |
+| `enum-two-ring`, `enum-two-key` | 2, 1 | 2, 2 | group 6 |
+
+Vampire runs two strategies one after the other, each with the time limit, so a call can take
+twice the limit. The quick suite takes about 20 minutes. The night suite is sized for about
+9 hours: about 4 hours of consistency checks and about 5 hours of enumeration (some 12,000
+Vampire calls, at about 1.7 s each in the run of 2026-10-08). The first night run used larger
+enumeration bounds and would have needed two to three days, so it was stopped after the
+first three groups (4,712 steps, all passing).
+
+`t_enum_dht.ath` prints `ENUM progress` every 500 passing steps in its log
+(`logs/<date>_<mode>/t_enum_dht.txt`). Athena may buffer its output, so the log can lag
+behind.
 
 ## Conventions
 
@@ -33,21 +64,6 @@ and `t_dht_running.ath` (about 1 minute).
 * Test-local symbols (for example `kz` and `inc` in `t_dfunction.ath`, `rem` in `t_crdt.ath`)
   are fresh constants with defining equations or a distinctness fact. They cannot make the
   assumption base inconsistent.
-
-## Files
-
-| File | Paper | What it checks |
-| --- | --- | --- |
-| `common.ath` | | Loads the development. Defines `L` (alive), `U` (dead), numerals, `vp`, `expect-no-refutation`. |
-| `premises.ath` | | The asserted sentences of each module, grouped for Vampire. |
-| `t_dpair.ath` | 3.2 | Destructors per location. Structural equality versus `dpr-equiv` (two unobservable pairs with different values are equivalent but not equal). `pr-equiv` fails with one dead location. |
-| `t_dfunction.ath` | 3.3 | Fault tolerance with both, one or no alive location. Composition order with two functions that do not commute. Composition fails when either stage has no alive location. |
-| `t_dht_empty.ath` | 3.4 | Empty tables with the table location alive or dead, every bucket dead, or no buckets at all (why the replication theorem needs a non-empty bucket list). |
-| `t_dht_running.ath` | 3.4 | Running example: ring `L U L`, `rv = 1`, inserts 1, 4, 2. Key 4 hashes past the end of the ring and collides with 1. Availability through `dht_replication_correctness`, query answers through `query_fc_insert`, values `{1, 4, 2}`, and `dht_functional_correctness` applied to the final table. |
-| `t_dht_failures.ath` | 3.4 | Proves that the earlier, asserted `dht_functional_correctness` is false. Shows that each hypothesis of the replication theorem is needed, windows longer than the ring, and hash values past the end of the ring. |
-| `t_crdt.ath` | 3.5 | Reordered and duplicated messages converge. The state holds exactly the added values. Different messages give different states. A non-add operation is outside the theorem. Empty mailboxes. |
-| `t_consistency.ath` | | Vampire tries to derive `false` from the asserted sentences of each module separately. |
-| `probe_vampire_misses_old_dfc.ath` | | Not run by default (about 10 minutes). Records that Vampire does not refute the false `dht_functional_correctness` even from the DHT definitions alone. |
 
 ## What the consistency checks can and cannot show
 
@@ -81,3 +97,7 @@ Athena pitfalls met while writing these tests:
   "Could not find a value for MOR". Write `(iff ?b (or p ?b0))` instead.
 * `seq` is reserved, and `tl`, `c` and `p` are already bound after loading the development.
   Pick distinctive names.
+* A deduction run inside a procedure (for example inside `map` or a `let` of a procedure body)
+  extends the assumption base only within that expression. Its result is not available to
+  later calls as a `vprove-from` premise. `t_enum_dht.ath` therefore proves each step under
+  `assume`s of the steps already proved (the method `under`).

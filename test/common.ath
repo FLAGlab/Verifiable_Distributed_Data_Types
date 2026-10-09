@@ -15,6 +15,7 @@
 ###     Athena. Each test says which of its results are Athena-checked.
 
 load "../sensor_app"
+load "mode"
 
 module TestLib {
 
@@ -29,7 +30,7 @@ module TestLib {
     define four  := (S three)
     define five  := (S four)
 
-    define opts := [['max-time 60]]
+    define opts := [['max-time Mode.vp-time]]
 
     # (!vp goal premises): Vampire with a short premise list.
     define vp := method (goal premises) (!vprove-from goal premises opts)
@@ -37,13 +38,16 @@ module TestLib {
     # Fail the whole run with a message.
     define (test-fail label) := (error (join "TEST FAILURE: " label))
 
-    # Consistency check: try to derive false from `premises`. Finding a
-    # refutation is a failure. Not finding one within the time limit is only
-    # evidence of consistency, not a proof.
-    define (expect-no-refutation label premises) :=
-        let {_ := try { (!vprove-from false premises opts) | (!true-intro) }}
+    # Consistency check: try to derive false from `premises` for `secs`
+    # seconds per Vampire stage. Finding a refutation is a failure. Not finding
+    # one is only evidence of consistency, not a proof.
+    define (expect-no-refutation-for label premises secs) :=
+        let {_ := try { (!vprove-from false premises [['max-time secs]]) | (!true-intro) }}
           check { (holds? false) => (test-fail (join "refutation found for " label))
-                | else => (print (join "\nCONSISTENCY " (join label ": no refutation within the time limit\n"))) }
+                | else => (print (join "\nCONSISTENCY " (join label (join " (" (join (val->string secs) " s per stage): no refutation\n"))))) }
+
+    define (expect-no-refutation label premises) :=
+        (expect-no-refutation-for label premises Mode.consistency-time)
 }
 
 open TestLib
