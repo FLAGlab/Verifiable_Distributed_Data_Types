@@ -30,9 +30,9 @@
 ### other has `(Location.alive lh)`.  The examples below check that on a
 ### three-bucket ring.
 ###
-### Run with:  athena-run dlls_index_examples
+### Run from Code/test with:  athena-run dlls_index_examples
 
-load "dlls"
+load "../dlls"
 
 domain Val
 declare vA: Val
@@ -43,8 +43,12 @@ module IndexExamples {
     define [i1 i2 i3a i3b i4 i5] := in_axioms
     define [a1 a2 a3a a3b a4 a5] := available_key_axioms
 
-    define L := Location.localhost         # a location that is alive
-    define U := Location.unreachableHost   # a location that is dead
+    # Example locations: L is assumed alive and U dead. They are fresh
+    # constants, so these two assumptions cannot make the assumption base
+    # inconsistent.
+    declare L, U: Location
+    assert aliveL := (Location.alive L)
+    assert deadU  := (~ (Location.alive U))
 
     define E  := (empty:(Lst Val))         # an empty bucket
     define BA := (lst vA (empty:(Lst Val)))  # a bucket holding vA
@@ -204,7 +208,7 @@ module IndexExamples {
 
     conclude ex_lockstep_unavailable
         let {
-            dead := (~ (Location.alive U));   # asserted in location.ath
+            dead := (~ (Location.alive U));   # assumed above (deadU)
             miss := (!chain-> [ dead
                                 ==> (~ (available_key zero zero r2_t1 ring2))
                                     [available_key_axioms] ]);

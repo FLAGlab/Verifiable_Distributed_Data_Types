@@ -19,10 +19,13 @@ load "mode"
 
 module TestLib {
 
-    define L      := Location.localhost          # provably alive
-    define U      := Location.unreachableHost    # provably dead
-    define aliveL := Location.aliveLocal
-    define deadU  := (~ Location.alive Location.unreachableHost)
+    # Two example locations: L is assumed alive and U dead. The development
+    # asserts no fact about specific locations (global view, location.ath).
+    # L and U are fresh constants, so these assumptions cannot make the
+    # assumption base inconsistent.
+    declare L, U: Location
+    assert aliveL := (Location.alive L)
+    assert deadU  := (~ (Location.alive U))
 
     define one   := (S zero)
     define two   := (S one)

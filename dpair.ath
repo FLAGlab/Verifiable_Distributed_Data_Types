@@ -71,25 +71,29 @@ declare pr-equiv: (S,T) [(Pr S T) (DPr S T)] -> Boolean
 
 assert* pr-dpr-equiv-def := (p pr-equiv dp <==> ((getFirst  dp) = SOME (first  p) & (getSecond dp) = SOME (second p)))
 
-define no-local-failures := (forall f s . ((pr f s) pr-equiv (dpr localhost f localhost s)))
+# A pair and a distributed pair whose two values sit at an alive location
+# are equivalent. (Earlier stated for the fixed location `localhost`.)
+define no-local-failures :=
+  (forall ?l:Location f s . (alive ?l:Location) ==> ((pr f s) pr-equiv (dpr ?l:Location f ?l:Location s)))
 
 conclude no-local-failures
-  pick-any f:'S s:'T
+  pick-any l:Location f:'S s:'T
+   assume (alive l)
     let {
 	1st := (!chain<- [
-		       ((getFirst (dpr localhost f localhost s))
+		       ((getFirst (dpr l f l s))
 			= (SOME (first (pr f s))))
-		   <== ((getFirst (dpr localhost f localhost s))
+		   <== ((getFirst (dpr l f l s))
 			= (SOME f))                    [pr-first]
-		   <== (alive localhost)               [first-alive]]);
+		   <== (alive l)                       [first-alive]]);
 	 2nd := (!chain<- [
-		       ((getSecond (dpr localhost f localhost s))
+		       ((getSecond (dpr l f l s))
 			= (SOME (second (pr f s))))
-		   <== ((getSecond (dpr localhost f localhost s))
+		   <== ((getSecond (dpr l f l s))
 			= (SOME s))                    [pr-second]
-		   <== (alive localhost)               [second-alive]])}
+		   <== (alive l)                       [second-alive]])}
     (!chain-> [     (1st & 2nd)
-		==> ((pr f s) pr-equiv (dpr localhost f localhost s))
+		==> ((pr f s) pr-equiv (dpr l f l s))
 		                                       [pr-dpr-equiv-def]])
 
 # we lift 'alive' predicate to distributed pairs:

@@ -1,0 +1,83 @@
+
+Welcome to Athena!
+
+Type an expression or deduction at the
+prompt below, and press Enter to evaluate it.
+
+To exit Athena, type "quit" at the prompt
+and press Enter.
+
+Loading basic libraries...
+
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/util.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/list.ath"
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/graph-draw.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/rsarray.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/maps.ath"
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/rewriting.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/prop-tab.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/tableaux.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/msr.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/pairs.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/options.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/dt-model-checker.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/dt-streams.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/streams.ath"
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/st.ath"
+
+Not found!
+
+standard input:0:0: Error: Unable to open file dlls_ncf_examples.ath.
+
+Ready...
+
+>
+Exiting Athena...
+

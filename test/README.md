@@ -9,7 +9,7 @@ error show up when a definition or a theorem is run on a concrete example.
 
 ```sh
 cd Code/test
-./run_tests.sh                    # quick mode: every t_*.ath, plus ../dlls_ncf_examples and ../dlls_index_examples
+./run_tests.sh                    # quick mode: every t_*.ath, plus dlls_ncf_examples and dlls_index_examples
 ./run_tests.sh t_dpair            # quick mode, only the named tests
 ./run_tests.sh --night            # night mode, every test (hours)
 nohup ./run_tests.sh --night > night.out 2>&1 &   # leave it running overnight
@@ -20,6 +20,10 @@ its output has no `error` line. Each test loads the whole development (`../senso
 it runs against exactly the sentences the paper uses. Tests run with
 `echo quit | athena <file>`. The log of every test is kept in `logs/<date>_<mode>/`, and the
 runner prints a `RUN` line when each test starts.
+
+The folder also holds `dlls_ncf_examples.ath` and `dlls_index_examples.ath`, concrete checks of
+`no_consecutive_failures` and of the bucket index that the comments in `dlls.ath` refer to. They
+load only `../dlls`, not the whole development. `VAMPIRE.md` explains how to call Vampire.
 
 Run only one suite at a time, and no other Athena process that calls Vampire. Athena writes its
 Vampire input and output files to `$ATHENA_HOME/tmp/vamp.*.N`, numbered by a counter that

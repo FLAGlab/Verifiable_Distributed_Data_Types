@@ -454,7 +454,7 @@ module DL_L_S {
     ###        was reported absent; and
     ###   (ii) the wrap clause decremented `bucket`, which made indices behave
     ###        modulo (#buckets + 1) instead of modulo #buckets.
-    ### `dlls_index_examples.ath` checks both on a three-bucket ring, against the
+    ### `test/dlls_index_examples.ath` checks both on a three-bucket ring, against the
     ### old clauses as well as the new ones.
     declare in: (S) [N N (DLst (Lst S)) (DLst (Lst S)) S] -> Boolean
     ### SOUNDNESS NOTE on the clause patterns below — do not make them contradict.
@@ -475,12 +475,9 @@ module DL_L_S {
     ### `Lst.In.in-lst-axiom` that made the assumption base inconsistent.
     ###
     ### The sound reading of that clause is narrower: `dlls` is always a suffix
-    ### of `o_dlls`, so an empty `o_dlls` forces an empty `dlls` too. The two
-    ### `(dempty _) (dempty _)` clauses below say exactly that, and cover the
-    ### only two cases the other clauses leave undetermined. Every clause here
-    ### is sound; the two pairs that do overlap (the wrap clauses with their
-    ### `(dempty _) (dempty _)` counterparts) agree on `false`, so the set stays
-    ### consistent.
+    ### of `o_dlls`, so an empty `o_dlls` forces an empty `dlls` too. The
+    ### `(dempty _) (dempty _)` clause below says exactly that. The clauses are
+    ### pairwise disjoint and mirror those of `available_key` one for one.
     assert in_axioms := (fun [
         # Both lists exhausted: there is no bucket anywhere, so nothing is found.
         # This is the only clause with an empty `o_dlls`, and it is what stops
@@ -929,8 +926,9 @@ module DL_L_S {
     ### in which `dlls` was unrestricted. Instantiating `o_dlls` to `(dempty htl)`
     ### in the second clause equates the very same atom with `(Location.alive lh)`,
     ### so the two clauses jointly prove `(forall lh . ~ (Location.alive lh))` —
-    ### every location is dead. Together with `Location.aliveLocal` that makes the
-    ### assumption base inconsistent, and it makes the hypothesis of
+    ### every location is dead. Together with any asserted alive location (at
+    ### the time, `Location.aliveLocal`) that makes the assumption base
+    ### inconsistent, and it makes the hypothesis of
     ### `dht_replication_correctness` unsatisfiable (hence the theorem vacuous),
     ### since `no_consecutive_failures rv dlls dlls` requires an alive location in
     ### every window.
@@ -1301,7 +1299,7 @@ module DL_L_S {
     ### conditional guarantee the paper claims.
     ###
     ### Because the predicate is only ever an antecedent, it is worth knowing
-    ### that it is neither unsatisfiable nor trivial. `dlls_ncf_examples.ath`
+    ### that it is neither unsatisfiable nor trivial. `test/dlls_ncf_examples.ath`
     ### checks three concrete instances on a three-bucket ring:
     ###   L U L with rv = 1  holds;  U U L with rv = 1  fails;
     ###   U U L with rv = 2  holds.

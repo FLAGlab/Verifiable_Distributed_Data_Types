@@ -24,8 +24,9 @@ define [h h1 h2 t t1 t2 le le1 le2 lh lh1 lh2] :=
 # previously stated with the identity =, as (dempty le1 = dempty le2) and
 # ((dlst lh1 h1 t1) = (dlst lh2 h2 t2) <==> (h1 = h2 & t1 = t2)). With the
 # selector axioms (loc (dempty le) = le) and (lHead (dlst lh h t) = lh),
-# they force every two locations to be equal, which contradicts
-# (alive localhost) and (~ alive unreachableHost). The assumption base was
+# they force every two locations to be equal, which contradicts the
+# existence of one alive and one dead location (at the time, the asserted
+# (alive localhost) and (~ alive unreachableHost)). The assumption base was
 # inconsistent (found with vprove-from and Vampire). The relation
 # dlst-equal below compares the values and ignores the locations.
 declare dlst-equal: (S) [(DLst S) (DLst S)] -> Boolean
@@ -380,12 +381,15 @@ conclude empty-Equiv-alive
     <==	(dlst-isEmpty dl = SOME true)                  [augment]
     <== (alive le)                             [dlst-isEmpty-true-alive]])
 
+# (Earlier stated for the fixed location `localhost`.)
 define empty-no-local-failure :=
-  (empty Equiv (dempty localhost))
+  (forall le . (alive le) ==> (empty Equiv (dempty le)))
 
 conclude empty-no-local-failure
-  (!chain-> [     (alive localhost)
-	      ==> (empty Equiv (dempty localhost))    [empty-Equiv-alive]])
+  pick-any le:Location
+    assume (alive le)
+      (!chain-> [     (alive le)
+	          ==> (empty Equiv (dempty le))    [empty-Equiv-alive]])
 
 #cvarela: Athena "bug" / chain 'feature':
 # conclude empty-no-local-failure
@@ -671,32 +675,35 @@ by-induction lst-dlst-Equiv-equal{
 
 define [t1 t2] := [?t1:(Lst 'S) ?t2:(DLst 'S)]
 
+# (Earlier stated for the fixed location `localhost`.)
 define no-local-failures :=
-  (forall h t1 t2 .
-     (t1 Equiv t2) ==>
-       ((lst h t1) Equiv (dlst localhost h t2)))
+  (forall lh h t1 t2 .
+     ((alive lh) & (t1 Equiv t2)) ==>
+       ((lst h t1) Equiv (dlst lh h t2)))
 
 conclude no-local-failures
-  pick-any h t1 t2
-    assume (t1 Equiv t2)
-      let {1st := (!chain<- [    ((getHead (dlst localhost h t2))
+  pick-any lh h t1 t2
+    assume ((alive lh) & (t1 Equiv t2))
+      let {al  := (!left-and ((alive lh) & (t1 Equiv t2)));
+           eqv := (!right-and ((alive lh) & (t1 Equiv t2)));
+           1st := (!chain<- [    ((getHead (dlst lh h t2))
 			        = (SOME (head (lst h t1))))
-			     <== ((getHead (dlst localhost h t2))
+			     <== ((getHead (dlst lh h t2))
 				= (SOME h))           [lst-head]
-			     <== (alive localhost)    [dlst-head-alive]]);
-           2A  := (!chain<- [    ((getTail (dlst localhost h t2))
+			     <== (alive lh)           [dlst-head-alive]]);
+           2A  := (!chain<- [    ((getTail (dlst lh h t2))
 				= (SOME t2))              
-			     <== (alive localhost)    [dlst-tail-alive]]);
+			     <== (alive lh)           [dlst-tail-alive]]);
 	   2B  := (!chain<- [    (tail (lst h t1) Equiv t2)
 			     <== (t1 Equiv t2)        [lst-tail]]);
            2AB := (!both 2A 2B);
 	   2nd := (!egen
-		   (exists t . ((getTail (dlst localhost h t2)) = (SOME t)
+		   (exists t . ((getTail (dlst lh h t2)) = (SOME t)
 			        & (tail (lst h t1) Equiv t))) t2);
 	   ne  := (!uspec* isEmpty-nonEmptyList [h t1]);
 	   all := (!both ne (!both 1st 2nd))}
       (!chain-> [     all
-		  ==> ((lst h t1) Equiv (dlst localhost h t2))
+		  ==> ((lst h t1) Equiv (dlst lh h t2))
  		                                      [lst-dlst-Equiv-def]])
 
 

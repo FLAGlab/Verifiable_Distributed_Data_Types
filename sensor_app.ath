@@ -6,7 +6,7 @@
 ### guarantees claimed by composition in the paper. Each `conclude` below is
 ### a direct instantiation of a sentence already on the assumption base of an
 ### upstream module; the final lemma chains two of them together to obtain
-### the cross-module composition guarantee that motivates Section IV.
+### the cross-module composition guarantee that motivates Section 4 of the paper.
 
 # Load order matters: `crdt.ath` proves a lemma that pattern-matches on a
 # list head named `h`; if `function.ath` has been loaded first, its
@@ -19,14 +19,14 @@ load "dhtable_mateo"
 load "dfunction"
 
 
-# SIV-A: Sensor-app sorts
+# Paper Section 4.1: Sensor-app sorts
 
 domain SensorID
 domain SensorType
 domain Temperature
 
 
-# SIV-A: Concrete data-type witnesses
+# Paper Section 4.1: Concrete data-type witnesses
 
 # DHT of sensor metadata. r = 1 ==> `available_key` collapses to
 # "home bucket alive OR its successor alive", the smallest non-trivial
@@ -45,7 +45,7 @@ define  telemetryNode :=
     (node zero telemetryState telemetryMailbox telemetryLoc)
 
 
-# SIV-B: Service kernel signatures
+# Paper Section 4.2: Service kernel signatures
 
 # Service 1: average temperature over the telemetry set.
 declare avgTemp :
@@ -71,13 +71,13 @@ declare avgPerType :
         Temperature)
 
 
-# SIV-B: Replica locations
+# Paper Section 4.2: Replica locations
 
 declare avgL0, avgL1, avgL2, avgL3, cntL0, cntL1 : Location
 declare grpL0, grpL1, aptL0, aptL1 : Location
 
 
-# SIV-B: functionReplica instances
+# Paper Section 4.2: functionReplica instances
 
 define avgTempSvc     := (DFunction.functionReplica avgTemp     avgL0 avgL1)
 # A second, independently placed replica pair of the same kernel.
@@ -92,7 +92,7 @@ define avgByTypeSvc :=
     (DFunction.replicaComposition avgPerTypeSvc groupByTypeSvc)
 
 
-# SIV-B: Service-level guarantees (derived)
+# Paper Section 4.2: Service-level guarantees (derived)
 
 # Telemetry convergence -- direct instance of CRDT.eventual_consistency at
 # the (Pr SensorID Temperature) carrier.
@@ -167,7 +167,7 @@ conclude avgByType_fault_tolerance
            hyp)
 
 
-# The real value of Section IV: combining eventual_consistency on the telemetry
+# The real value of Section 4: combining eventual_consistency on the telemetry
 # stream with fault_tolerance_correctness on the avgTemp service gives a
 # service-level convergence guarantee. Two correct telemetry replicas that
 # have delivered the same set of `add` messages, fed into an alive avgTemp

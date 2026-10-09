@@ -1,27 +1,27 @@
-
 domain Location
 
 module Location {
-	    
+
 declare alive: [Location] -> Boolean
 
-# We assume 'localhost' is always alive (otherwise, it would not be
-# possible to execute such 'alive' predicate.)  On the other hand,
-# other locations/nodes/hosts can fail at any time.  In practice, this
-# may be implemented with a ping protocol with a timeout, after which
-# no answer is regarded as a node 'failure' to respond. A challenge,
-# from a logical perspective, will be non-monotonic reasoning: a node
-# may be alive, then not alive, then alive again...  we need a
-# temporal logic to model such reasoning.
-
-declare localhost: Location
-assert aliveLocal := (alive localhost)
-
-#cvarela: to model unreachable host
-declare unreachableHost: Location
-assert (~ alive unreachableHost)
+# `alive` is a global view of the system. The assumption base describes the
+# system at one point in time, and (alive l) says whether location l is alive
+# at that point. Time is not modeled, so every observer agrees on this value.
+#
+# An earlier version took a local view: it asserted that the node executing
+# the predicate (`localhost`) is alive, since otherwise it could not execute
+# it. In a network partition two nodes can observe different values of
+# (alive l), which a single predicate cannot represent, so that view could
+# lead to inconsistencies. The global view also means that network partitions
+# are not modeled: every alive location is reachable from every other one.
+#
+# An implementation can only approximate this ground truth, for instance with
+# a ping or heartbeat protocol with a timeout, after which a node that has not
+# answered is regarded (possibly wrongly) as not alive.
+#
+# The development asserts no fact about specific locations. Examples and tests
+# declare their own alive and dead locations.
 
 } # close module Location
 
 open Location
-

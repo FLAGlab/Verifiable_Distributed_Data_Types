@@ -445,7 +445,7 @@ module DHTable {
 
 	# values_functional_correctness is now a real datatype-cases proof (was a bare
 	# `assert`). Both branches are proven (values_fc_empty, values_fc_insert), and
-	# it depends on no asserted sentence.
+	# no asserted lemma is used, only the definitions.
 	define values_functional_correctness :=
 		(forall dht . (available dht ==>
 				(exists ll hf rv htl .
@@ -649,8 +649,10 @@ module DHTable {
 	### the conclusion promised (SOME b) for every key. Together with the other
 	### axioms it derived `false` (review_checks/m5_dht_functional_correctness_false.ath).
 	### The sentence now carries the same per-key hypotheses as
-	### query_functional_correctness, and it follows from that theorem and
-	### values_functional_correctness.
+	### query_functional_correctness. It is proven by cases on the constructor
+	### from the lemmas behind query_functional_correctness and
+	### values_functional_correctness: query_fc_empty_case for the empty case,
+	### and query_fc_insert with values_fc_insert for the insertion case.
 	define dht_functional_correctness :=
 		(forall dht v hf rv htl dlls .
 			(((rep dht) = (dhtr hf rv htl dlls)) &
@@ -719,8 +721,8 @@ module DHTable {
 	### per-key `available_key` precondition demanded by
 	### `query_functional_correctness`.
 	###
-	### The `~ (dlls = (dempty htl))` precondition rules out the
-	### degenerate case `(dht_empty empty hf rv htl)` (initialized with
+	### The non-empty precondition (`dlls` has the `dlst` shape) rules out
+	### the degenerate case `(dht_empty empty hf rv htl)` (initialized with
 	### an empty location list): there `dlls = (dempty htl)`,
 	### `no_consecutive_failures` is vacuously true (no positions to
 	### start a window from), but `available_key` returns false when
@@ -735,34 +737,25 @@ module DHTable {
 	###   * Insert branch (dht = dht_insert dht0 v0): unfold `available`
 	###     into the conjunction
 	###         (available dht0) & (available_key (hf at v0) rv dlls dlls).
-	###     (i) `available dht0` follows from the IH after translating
-	###         the `no_consecutive_failures` hypothesis from the
-	###         post-insert dlls back to the pre-insert dlls through
-	###         `insertDPrList_preserves_locs` (dlls.ath:284) and
-	###         `available_key_dlls_locs_inv` (dlls.ath:789) — both
-	###         predicates depend on dlls only through its
-	###         head-location projection `dlls_locs`.
-	###     (ii) `available_key (hf at v0) rv dlls dlls` follows from a
-	###         bucket-lookup lemma derived by induction on the bucket
-	###         index from `no_consecutive_failures`: every starting
-	###         position yields an alive window, so the specific
-	###         position `(hf at v0)` does too.
-	###
-	###     The lookup lemma is the natural intermediate:
-	###         forall bucket rv dlls .
-	###             (~ (dlls = (dempty htl))) &
-	###             (no_consecutive_failures rv dlls dlls)
-	###             ==> (available_key bucket rv dlls dlls)
-	###     proved by induction on (bucket, dlls). It is *not* declared
-	###     here so the assumption base stays minimal; add it as a
-	###     proved lemma when discharging this theorem.
+	###     Let (dhtr hf0 rv0 htl0 dlls0) be the representation of dht0.
+	###     (i) `available dht0` follows from the IH. Its premises hold
+	###         for dlls0: `no_consecutive_failures_insert_inv` carries the
+	###         `no_consecutive_failures` hypothesis back from the
+	###         post-insert list, `insertDPrList_preserves_nonempty` does
+	###         the same for the `dlst` shape, and the table location is
+	###         unchanged.
+	###     (ii) `available_key (hf0 at v0) rv0 dlls0 dlls0` follows from
+	###         `no_consecutive_failures_implies_key_available` (below),
+	###         a corollary of `DL_L_S.ncf_key_available_gen`: every
+	###         starting position yields an available window, so the
+	###         specific position `(hf0 at v0)` does too.
 	### Auxiliary lemma (PROVED): `no_consecutive_failures` is invariant
 	### under `insertDPrList` when both the dlls and o_dlls slots are the
 	### freshly-inserted list (the canonical form `available` uses).
-	### Provable by structural induction on dlls using
-	### `insertDPrList_preserves_locs` (dlls.ath:284) and
-	### `available_key_dlls_locs_inv` (dlls.ath:789) — both available
-	### predicates ultimately depend on dlls only through `dlls_locs`.
+	### Proven from `DL_L_S.ncf_insert_inv`, which goes through the
+	### every-window form `ncf_from_all_windows` and uses
+	### `available_key_insert_invariant` and `insertDPrList_preserves_locs`:
+	### both predicates depend on dlls only through `dlls_locs`.
 	define no_consecutive_failures_insert_inv :=
 		(forall n rv1 v0 dlls0 .
 			(no_consecutive_failures rv1
@@ -785,9 +778,9 @@ module DHTable {
 	### merely unproven, it is FALSE. That hypothesis only says `dlls0` differs
 	### from the empty list AT ONE PARTICULAR LOCATION: `(dempty htl2)` for any
 	### htl2 =/= htl still satisfies it, and there `no_consecutive_failures` is
-	### vacuously true while `available_key` is false. Since `Location.aliveLocal`
-	### and the assertion `(~ alive unreachableHost)` force two distinct
-	### locations to exist, the old statement is refutable outright. Saying that
+	### vacuously true while `available_key` is false. So the old statement is
+	### false whenever two distinct locations exist (at the time, the asserted
+	### `localhost` and `unreachableHost` made it refutable outright). Saying that
 	### the bucket list is a `dlst` is what was actually meant, and it is what
 	### the lemma needs.
 	define no_consecutive_failures_implies_key_available :=

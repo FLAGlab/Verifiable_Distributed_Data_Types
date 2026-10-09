@@ -34,8 +34,8 @@
 ###     failure domain).
 ###
 ### The three examples below check that reading against the axioms, on a
-### three-bucket ring, with `L` a location that is provably alive
-### (`Location.aliveLocal`) and `U` one that is provably dead:
+### three-bucket ring, with `L` a location that is assumed alive and `U` one
+### that is assumed dead (two fresh constants declared below):
 ###
 ###     ex_ring_rv1_holds     : L U L  with rv = 1  ==>  holds
 ###     ex_badring_rv1_fails  : U U L  with rv = 1  ==>  fails (a 2-run of
@@ -49,9 +49,9 @@
 ### not trivially true), and monotone in `rv` in the direction the paper
 ### claims: raising the replication value tolerates longer failure runs.
 ###
-### Run with:  athena-run dlls_ncf_examples
+### Run from Code/test with:  athena-run dlls_ncf_examples
 
-load "dlls"
+load "../dlls"
 
 module NCFExamples {
     open DL_L_S
@@ -64,11 +64,13 @@ module NCFExamples {
     # no_consecutive_failures: nc1 = no positions left, nc2 = one position.
     define [nc1 nc2] := no_consecutive_failures_axioms
 
-    define L      := Location.localhost         # provably alive
-    define U      := Location.unreachableHost   # provably dead
     define E      := (empty:(Lst Location))     # an empty bucket
-    define aliveL := Location.aliveLocal
-    define deadU  := (~ Location.alive U)
+    # Example locations: L is assumed alive and U dead. They are fresh
+    # constants, so these two assumptions cannot make the assumption base
+    # inconsistent.
+    declare L, U: Location
+    assert aliveL := (Location.alive L)
+    assert deadU  := (~ (Location.alive U))
 
     define one := (S zero)
     define two := (S one)

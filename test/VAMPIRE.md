@@ -59,14 +59,16 @@ Vampire being correct.
 
 ## Consistency check
 
-Create a file such as `consistency_check.ath` in `Code/`:
+`t_consistency.ath` runs this check module by module (quick mode) and over the whole
+assumption base (night mode). Run it with `./run_tests.sh t_consistency` from this folder. For a
+one-off check, create a file in this folder:
 
 ```
-load "sensor_app"
+load "../sensor_app"
 (!vprove-from false (ab) [['max-time 300]])
 ```
 
-Run it with `athena-run consistency_check`.
+and run it with `echo quit | athena <file>.ath`.
 
 - `Theorem: false` means the axioms are inconsistent. Vampire found a contradiction.
 - `Unable to derive the conclusion false` means Vampire found no contradiction within the

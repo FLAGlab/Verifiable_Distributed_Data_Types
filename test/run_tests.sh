@@ -56,7 +56,7 @@ status=0
 if [ $# -gt 0 ]; then
     tests=("$@")
 else
-    tests=(t_*.ath ../dlls_ncf_examples.ath ../dlls_index_examples.ath)
+    tests=(t_*.ath dlls_ncf_examples.ath dlls_index_examples.ath)
 fi
 
 echo "mode: $mode   logs: $logs   started: $(date)"

@@ -6,14 +6,12 @@
       "type": "shell",
       "command": "timeout",
       "args": [
-        "20",             
-        "/home/mateosa/repos/athena/athena",
+        "300",
+        "${env:ATHENA_HOME}/athena",
         "${file}"
       ],
       "options": {
-        "env": {
-          "ATHENA_HOME": "/home/mateosa/repos/athena"
-        }
+        "cwd": "${fileDirname}"
       },
       "group": {
         "kind": "build",
