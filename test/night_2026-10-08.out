@@ -1,0 +1,15 @@
+mode: night   logs: logs/2026-10-08_1929_night   started: jue 08 oct 2026 19:29:43 -05
+PASS  t_consistency             180 theorems   26411s
+      CONSISTENCY locations and libraries (1200 s per stage): no refutation
+      CONSISTENCY distributed pairs (1200 s per stage): no refutation
+      CONSISTENCY replicated functions (1200 s per stage): no refutation
+      CONSISTENCY distributed hash tables (1200 s per stage): no refutation
+      CONSISTENCY grow-only set CRDT (1200 s per stage): no refutation
+      CONSISTENCY all definitions together (3600 s per stage): no refutation
+      CONSISTENCY whole assumption base (3600 s per stage): no refutation
+PASS  t_crdt                    204 theorems     306s
+PASS  t_dfunction               198 theorems       5s
+PASS  t_dht_empty               192 theorems       5s
+PASS  t_dht_failures            206 theorems       6s
+PASS  t_dht_running             218 theorems     305s
+PASS  t_dpair                   188 theorems       5s

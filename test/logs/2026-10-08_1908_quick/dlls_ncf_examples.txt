@@ -1,0 +1,3893 @@
+
+Welcome to Athena!
+
+Type an expression or deduction at the
+prompt below, and press Enter to evaluate it.
+
+To exit Athena, type "quit" at the prompt
+and press Enter.
+
+Loading basic libraries...
+
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/util.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/list.ath"
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/graph-draw.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/rsarray.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/maps.ath"
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/rewriting.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/prop-tab.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/tableaux.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/msr.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/pairs.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/options.ath"
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/dt-model-checker.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/dt-streams.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/streams.ath"
+
+Unit: ()
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/basic/st.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/dlls_ncf_examples.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/dlls.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/lst-in.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/list.ath"
+
+New datatype Lst defined.
+
+The sentence 
+(forall ?y1:'S
+  (forall ?y2:(Lst 'S)
+    (not (= empty:(Lst 'S)
+            (lst ?y1:'S
+                 ?y2:(Lst 'S))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?x1:'S
+  (forall ?x2:(Lst 'S)
+    (forall ?y1:'S
+      (forall ?y2:(Lst 'S)
+        (iff (= (lst ?x1:'S
+                     ?x2:(Lst 'S))
+                (lst ?y1:'S
+                     ?y2:(Lst 'S)))
+             (and (= ?x1:'S ?y1:'S)
+                  (= ?x2:(Lst 'S)
+                     ?y2:(Lst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:(Lst 'S)
+  (or (= ?v:(Lst 'S)
+         empty:(Lst 'S))
+      (exists ?x1:'S
+        (exists ?x2:(Lst 'S)
+          (= ?v:(Lst 'S)
+             (lst ?x1:'S
+                  ?x2:(Lst 'S)))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v953:'S
+  (forall ?v954:(Lst 'S)
+    (= (head (lst ?v953:'S
+                  ?v954:(Lst 'S)))
+       ?v953:'S)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v953:'S
+  (forall ?v954:(Lst 'S)
+    (= (tail (lst ?v953:'S
+                  ?v954:(Lst 'S)))
+       ?v954:(Lst 'S))))
+has been added to the assumption base.
+
+Sentence Lst.lst-no-conf-empty defined.
+
+Sentence Lst.lst-no-conf-lst defined.
+
+Sentence Lst.lst-no-junk defined.
+
+Sentence Lst.lst-head defined.
+
+Sentence Lst.lst-tail defined.
+
+New symbol Lst.isEmpty declared.
+
+Term Lst.l defined.
+
+The sentence 
+(forall ?l:(Lst 'S)
+  (iff (Lst.isEmpty ?l:(Lst 'S))
+       (= ?l:(Lst 'S)
+          empty:(Lst 'S))))
+has been added to the assumption base.
+
+Term Lst.isEmpty-emptyList defined.
+
+Theorem: (Lst.isEmpty empty:(Lst 'S))
+
+Term Lst.t defined.
+
+Term Lst.h defined.
+
+Sentence Lst.isEmpty-nonEmptyList defined.
+
+Theorem: (forall ?h:'S
+           (forall ?t:(Lst 'S)
+             (not (Lst.isEmpty (lst ?h:'S
+                                    ?t:(Lst 'S))))))
+
+Term Lst.v defined.
+
+Term Lst.t defined.
+
+Term Lst.h defined.
+
+New symbol Lst.in declared.
+
+The sentence 
+(forall ?v:'S
+  (= (Lst.in ?v:'S
+             empty:(Lst 'S))
+     false))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Lst 'S)
+    (forall ?v:'S
+      (if (= ?v:'S ?h:'S)
+          (= (Lst.in ?v:'S
+                     (lst ?h:'S
+                          ?t:(Lst 'S)))
+             true)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Lst 'S)
+    (forall ?v:'S
+      (if (not (= ?v:'S ?h:'S))
+          (= (Lst.in ?v:'S
+                     (lst ?h:'S
+                          ?t:(Lst 'S)))
+             (Lst.in ?v:'S
+                     ?t:(Lst 'S)))))))
+has been added to the assumption base.
+
+Module Lst defined.
+
+OK.
+
+Warning, /home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/lst-in.ath:8:9: Duplicate symbol---the name Lst.in is already used as a function symbol.
+
+Term Lst.In.v defined.
+
+Term Lst.In.t defined.
+
+Term Lst.In.h defined.
+
+The sentence 
+(forall ?v:'S
+  (not (Lst.in ?v:'S
+               empty:(Lst 'S))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Lst 'S)
+    (forall ?v:'S
+      (iff (Lst.in ?v:'S
+                   (lst ?h:'S
+                        ?t:(Lst 'S)))
+           (or (= ?v:'S ?h:'S)
+               (Lst.in ?v:'S
+                       ?t:(Lst 'S)))))))
+has been added to the assumption base.
+
+List Lst.In.in-axioms defined.
+
+Term Lst.In.l defined.
+
+Sentence Lst.In.functional-correctness defined.
+
+Sentence Lst.In.empty-C defined.
+
+Theorem: (forall ?v:'S
+           (iff (Lst.in ?v:'S
+                        empty:(Lst 'S))
+                false))
+
+Sentence Lst.In.in-tail-exists defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?v:'S
+             (if (Lst.in ?v:'S
+                         (tail ?l:(Lst 'S)))
+                 (exists ?t:(Lst 'S)
+                   (= (tail ?l:(Lst 'S))
+                      ?t:(Lst 'S))))))
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?v:'S
+             (iff (Lst.in ?v:'S
+                          ?l:(Lst 'S))
+                  (and (not (Lst.isEmpty ?l:(Lst 'S)))
+                       (or (= ?v:'S
+                              (head ?l:(Lst 'S)))
+                           (Lst.in ?v:'S
+                                   (tail ?l:(Lst 'S))))))))
+
+Term Lst.In.v1 defined.
+
+Term Lst.In.v2 defined.
+
+Sentence Lst.In.in-singleton defined.
+
+Theorem: (forall ?v1:'S
+           (forall ?v2:'S
+             (iff (Lst.in ?v2:'S
+                          (lst ?v1:'S
+                               empty:(Lst 'S)))
+                  (= ?v2:'S ?v1:'S))))
+
+Module Lst.In defined.
+
+Module Lst extended.
+
+OK.
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/lst-toset.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/set-util.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/sets-notp.ath"
+
+Loading file "/home/mateosa/Repos/athena-linux-v1.6.1/lib/main/nat-plus.ath"
+
+New datatype N defined.
+
+OK.
+
+The sentence 
+(forall ?y1:N
+  (not (= zero
+          (S ?y1:N))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?x1:N
+  (forall ?y1:N
+    (iff (= (S ?x1:N)
+            (S ?y1:N))
+         (= ?x1:N ?y1:N))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:N
+  (or (= ?v:N zero)
+      (exists ?x1:N
+        (= ?v:N
+           (S ?x1:N)))))
+has been added to the assumption base.
+
+Procedure int->nat defined.
+
+Procedure nat->int defined.
+
+Procedure nat->int defined.
+
+Symbol N.S defined.
+
+Term N.zero defined.
+
+New symbol N.one declared.
+
+New symbol N.two declared.
+
+Term N.x defined.
+
+Term N.k defined.
+
+Term N.m defined.
+
+Term N.p defined.
+
+Term N.y defined.
+
+Term N.n defined.
+
+Term N.z defined.
+
+The sentence 
+(= N.one
+   (S zero))
+has been added to the assumption base.
+
+The sentence 
+(= N.two
+   (S N.one))
+has been added to the assumption base.
+
+Sentence N.S-not-zero defined.
+
+Sentence N.one-not-zero defined.
+
+Sentence N.S-injective defined.
+
+Theorem: (forall ?n:N
+           (not (= (S ?n:N)
+                   zero)))
+
+Theorem: (forall ?n:N
+           (not (= (S ?n:N)
+                   zero)))
+
+Theorem: (not (= N.one zero))
+
+Theorem: (forall ?m:N
+           (forall ?n:N
+             (iff (= (S ?m:N)
+                     (S ?n:N))
+                  (= ?m:N ?n:N))))
+
+Sentence N.nonzero-S defined.
+
+Sentence N.S-not-same defined.
+
+Theorem: (forall ?n:N
+           (if (not (= ?n:N zero))
+               (exists ?m:N
+                 (= ?n:N
+                    (S ?m:N)))))
+
+Theorem: (forall ?n:N
+           (not (= (S ?n:N)
+                   ?n:N)))
+
+New symbol N.+ declared.
+
+The sentence 
+(forall ?n:N
+  (= (N.+ ?n:N zero)
+     ?n:N))
+has been added to the assumption base.
+
+The sentence 
+(forall ?m:N
+  (forall ?n:N
+    (= (N.+ ?n:N
+            (S ?m:N))
+       (S (N.+ ?n:N ?m:N)))))
+has been added to the assumption base.
+
+Sentence N.Plus.right-zero defined.
+
+Sentence N.Plus.right-nonzero defined.
+
+Sentence N.Plus.left-zero defined.
+
+Sentence N.Plus.left-nonzero defined.
+
+Theorem: (forall ?n:N
+           (= (N.+ zero ?n:N)
+              ?n:N))
+
+Theorem: (forall ?n:N
+           (forall ?m:N
+             (= (N.+ (S ?m:N)
+                     ?n:N)
+                (S (N.+ ?m:N ?n:N)))))
+
+Sentence N.Plus.right-one defined.
+
+Sentence N.Plus.left-one defined.
+
+Theorem: (forall ?n:N
+           (= (N.+ ?n:N N.one)
+              (S ?n:N)))
+
+Theorem: (forall ?n:N
+           (= (N.+ N.one ?n:N)
+              (S ?n:N)))
+
+Sentence N.Plus.associative defined.
+
+Sentence N.Plus.commutative defined.
+
+Theorem: (forall ?m:N
+           (forall ?p:N
+             (forall ?n:N
+               (= (N.+ (N.+ ?m:N ?p:N)
+                       ?n:N)
+                  (N.+ ?m:N
+                       (N.+ ?p:N ?n:N))))))
+
+Theorem: (forall ?n:N
+           (forall ?m:N
+             (= (N.+ ?m:N ?n:N)
+                (N.+ ?n:N ?m:N))))
+
+Sentence N.Plus.=-cancellation defined.
+
+Theorem: (forall ?k:N
+           (forall ?m:N
+             (forall ?n:N
+               (if (= (N.+ ?m:N ?k:N)
+                      (N.+ ?n:N ?k:N))
+                   (= ?m:N ?n:N)))))
+
+Sentence N.Plus.squeeze-property defined.
+
+Theorem: (forall ?m:N
+           (forall ?n:N
+             (if (= (N.+ ?m:N ?n:N)
+                    zero)
+                 (= ?m:N zero))))
+
+Module N.Plus defined.
+
+Module N defined.
+
+New structure Set.Set defined.
+
+Symbol Set.++ defined.
+
+OK.
+
+Term Set.x defined.
+
+Term Set.y defined.
+
+Term Set.t defined.
+
+Term Set.C defined.
+
+Term Set.A defined.
+
+Term Set.h defined.
+
+Term Set.B defined.
+
+Term Set.s1 defined.
+
+Term Set.s2 defined.
+
+New symbol Set.in declared.
+
+The sentence 
+(forall ?v1196:'S
+  (not (Set.in ?v1196:'S
+               Set.null:(Set.Set 'S))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Set.Set 'S)
+    (forall ?x:'S
+      (iff (Set.in ?x:'S
+                   (Set.insert ?h:'S
+                               ?t:(Set.Set 'S)))
+           (or (= ?x:'S ?h:'S)
+               (Set.in ?x:'S
+                       ?t:(Set.Set 'S)))))))
+has been added to the assumption base.
+
+Theorem: (forall ?x:'S
+           (iff (Set.in ?x:'S
+                        Set.null:(Set.Set 'S))
+                false))
+
+Sentence Set.NC defined.
+
+New symbol Set.subset declared.
+
+The sentence 
+(forall ?v1197:(Set.Set 'S)
+  (Set.subset Set.null:(Set.Set 'S)
+              ?v1197:(Set.Set 'S)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?A:(Set.Set 'S)
+  (forall ?h:'S
+    (forall ?t:(Set.Set 'S)
+      (iff (Set.subset (Set.insert ?h:'S
+                                   ?t:(Set.Set 'S))
+                       ?A:(Set.Set 'S))
+           (and (Set.in ?h:'S
+                        ?A:(Set.Set 'S))
+                (Set.subset ?t:(Set.Set 'S)
+                            ?A:(Set.Set 'S)))))))
+has been added to the assumption base.
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (if (Set.subset ?A:(Set.Set 'S)
+                             ?B:(Set.Set 'S))
+                 (forall ?x:'S
+                   (if (Set.in ?x:'S
+                               ?A:(Set.Set 'S))
+                       (Set.in ?x:'S
+                               ?B:(Set.Set 'S)))))))
+
+Sentence Set.subset-characterization-1 defined.
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (if (forall ?x:'S
+                   (if (Set.in ?x:'S
+                               ?A:(Set.Set 'S))
+                       (Set.in ?x:'S
+                               ?B:(Set.Set 'S))))
+                 (Set.subset ?A:(Set.Set 'S)
+                             ?B:(Set.Set 'S)))))
+
+Sentence Set.subset-characterization-2 defined.
+
+Theorem: (forall ?s1:(Set.Set 'S)
+           (forall ?s2:(Set.Set 'S)
+             (iff (Set.subset ?s1:(Set.Set 'S)
+                              ?s2:(Set.Set 'S))
+                  (forall ?x:'S
+                    (if (Set.in ?x:'S
+                                ?s1:(Set.Set 'S))
+                        (Set.in ?x:'S
+                                ?s2:(Set.Set 'S)))))))
+
+Sentence Set.SC defined.
+
+Method Set.subset-intro defined.
+
+The sentence 
+(forall ?A:(Set.Set 'S)
+  (forall ?B:(Set.Set 'S)
+    (iff (= ?A:(Set.Set 'S)
+            ?B:(Set.Set 'S))
+         (and (Set.subset ?A:(Set.Set 'S)
+                          ?B:(Set.Set 'S))
+              (Set.subset ?B:(Set.Set 'S)
+                          ?A:(Set.Set 'S))))))
+has been added to the assumption base.
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (iff (= ?A:(Set.Set 'S)
+                     ?B:(Set.Set 'S))
+                  (forall ?x:'S
+                    (iff (Set.in ?x:'S
+                                 ?A:(Set.Set 'S))
+                         (Set.in ?x:'S
+                                 ?B:(Set.Set 'S)))))))
+
+Sentence Set.SIC defined.
+
+Method Set.set-identity-intro-direct defined.
+
+New symbol Set.union declared.
+
+Symbol Set.\/ defined.
+
+The sentence 
+(forall ?s1:(Set.Set 'S)
+  (= (Set.union Set.null:(Set.Set 'S)
+                ?s1:(Set.Set 'S))
+     ?s1:(Set.Set 'S)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Set.Set 'S)
+    (forall ?s1:(Set.Set 'S)
+      (= (Set.union (Set.insert ?h:'S
+                                ?t:(Set.Set 'S))
+                    ?s1:(Set.Set 'S))
+         (Set.insert ?h:'S
+                     (Set.union ?t:(Set.Set 'S)
+                                ?s1:(Set.Set 'S)))))))
+has been added to the assumption base.
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (forall ?x:'S
+               (if (Set.in ?x:'S
+                           (Set.union ?A:(Set.Set 'S)
+                                      ?B:(Set.Set 'S)))
+                   (or (Set.in ?x:'S
+                               ?A:(Set.Set 'S))
+                       (Set.in ?x:'S
+                               ?B:(Set.Set 'S)))))))
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (forall ?x:'S
+               (if (or (Set.in ?x:'S
+                               ?A:(Set.Set 'S))
+                       (Set.in ?x:'S
+                               ?B:(Set.Set 'S)))
+                   (Set.in ?x:'S
+                           (Set.union ?A:(Set.Set 'S)
+                                      ?B:(Set.Set 'S)))))))
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (forall ?x:'S
+               (iff (Set.in ?x:'S
+                            (Set.union ?A:(Set.Set 'S)
+                                       ?B:(Set.Set 'S)))
+                    (or (Set.in ?x:'S
+                                ?A:(Set.Set 'S))
+                        (Set.in ?x:'S
+                                ?B:(Set.Set 'S)))))))
+
+Sentence Set.UC defined.
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (= (Set.union ?A:(Set.Set 'S)
+                           ?B:(Set.Set 'S))
+                (Set.union ?B:(Set.Set 'S)
+                           ?A:(Set.Set 'S)))))
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (forall ?B:(Set.Set 'S)
+             (forall ?C:(Set.Set 'S)
+               (= (Set.union ?A:(Set.Set 'S)
+                             (Set.union ?B:(Set.Set 'S)
+                                        ?C:(Set.Set 'S)))
+                  (Set.union (Set.union ?A:(Set.Set 'S)
+                                        ?B:(Set.Set 'S))
+                             ?C:(Set.Set 'S))))))
+
+Theorem: (forall ?A:(Set.Set 'S)
+           (= (Set.union ?A:(Set.Set 'S)
+                         ?A:(Set.Set 'S))
+              ?A:(Set.Set 'S)))
+
+Module Set defined.
+
+Term Set.v defined.
+
+Term Set.A defined.
+
+Term Set.B defined.
+
+Sentence Set.in-disjointA defined.
+
+Theorem: (forall ?v:'S
+           (forall ?A:(Set.Set 'S)
+             (forall ?B:(Set.Set 'S)
+               (if (and (Set.in ?v:'S
+                                (Set.union ?A:(Set.Set 'S)
+                                           ?B:(Set.Set 'S)))
+                        (not (Set.in ?v:'S
+                                     ?B:(Set.Set 'S))))
+                   (Set.in ?v:'S
+                           ?A:(Set.Set 'S))))))
+
+Sentence Set.in-disjointB defined.
+
+Theorem: (forall ?v:'S
+           (forall ?A:(Set.Set 'S)
+             (forall ?B:(Set.Set 'S)
+               (if (and (Set.in ?v:'S
+                                (Set.union ?B:(Set.Set 'S)
+                                           ?A:(Set.Set 'S)))
+                        (not (Set.in ?v:'S
+                                     ?B:(Set.Set 'S))))
+                   (Set.in ?v:'S
+                           ?A:(Set.Set 'S))))))
+
+Sentence Set.in-disjoint defined.
+
+Theorem: (and (forall ?v:'S
+                (forall ?A:(Set.Set 'S)
+                  (forall ?B:(Set.Set 'S)
+                    (if (and (Set.in ?v:'S
+                                     (Set.union ?A:(Set.Set 'S)
+                                                ?B:(Set.Set 'S)))
+                             (not (Set.in ?v:'S
+                                          ?B:(Set.Set 'S))))
+                        (Set.in ?v:'S
+                                ?A:(Set.Set 'S))))))
+              (forall ?v:'S
+                (forall ?A:(Set.Set 'S)
+                  (forall ?B:(Set.Set 'S)
+                    (if (and (Set.in ?v:'S
+                                     (Set.union ?B:(Set.Set 'S)
+                                                ?A:(Set.Set 'S)))
+                             (not (Set.in ?v:'S
+                                          ?B:(Set.Set 'S))))
+                        (Set.in ?v:'S
+                                ?A:(Set.Set 'S)))))))
+
+Module Set extended.
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/bool.ath"
+
+The sentence 
+(not (= true false))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:Boolean
+  (or (= ?v:Boolean true)
+      (= ?v:Boolean false)))
+has been added to the assumption base.
+
+Sentence bool.bool-noconf defined.
+
+Sentence bool.bool-nojunk defined.
+
+Method bool.bool-true defined.
+
+Method bool.bool-false defined.
+
+Method bool.true-bool defined.
+
+Method bool.false-bool defined.
+
+Method bool.eq2equiv defined.
+
+Method bool.equiv2eq defined.
+
+Module bool defined.
+
+OK.
+
+New symbol Lst.l2s declared.
+
+OK.
+
+Term Lst.toSet.v defined.
+
+Term Lst.toSet.t defined.
+
+Term Lst.toSet.h defined.
+
+The sentence 
+(= (Lst.l2s empty:(Lst 'S))
+   Set.null:(Set.Set 'S))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(Lst 'S)
+    (= (Lst.l2s (lst ?h:'S
+                     ?t:(Lst 'S)))
+       (Set.insert ?h:'S
+                   (Lst.l2s ?t:(Lst 'S))))))
+has been added to the assumption base.
+
+Term Lst.toSet.toSet-empty-axiom defined.
+
+Sentence Lst.toSet.toSet-lst-axiom defined.
+
+Term Lst.toSet.l defined.
+
+Sentence Lst.toSet.toSet-fc defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?v:'S
+             (iff (Lst.in ?v:'S
+                          ?l:(Lst 'S))
+                  (Set.in ?v:'S
+                          (Lst.l2s ?l:(Lst 'S))))))
+
+Term Lst.toSet.l1 defined.
+
+Term Lst.toSet.l2 defined.
+
+Sentence Lst.toSet.in-equal defined.
+
+Theorem: (forall ?l1:(Lst 'S)
+           (forall ?l2:(Lst 'S)
+             (forall ?v:'S
+               (if (= (Lst.l2s ?l1:(Lst 'S))
+                      (Lst.l2s ?l2:(Lst 'S)))
+                   (= (Lst.in ?v:'S
+                              ?l1:(Lst 'S))
+                      (Lst.in ?v:'S
+                              ?l2:(Lst 'S)))))))
+
+Module Lst.toSet defined.
+
+Module Lst extended.
+
+OK.
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/dlist.ath"
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/location.ath"
+
+New domain Location introduced.
+
+New symbol Location.alive declared.
+
+New symbol Location.localhost declared.
+
+The sentence 
+(Location.alive Location.localhost)
+has been added to the assumption base.
+
+New symbol Location.unreachableHost declared.
+
+The sentence 
+(not (Location.alive Location.unreachableHost))
+has been added to the assumption base.
+
+Module Location defined.
+
+OK.
+
+New structure DLst defined.
+
+The sentence 
+(forall ?x1:Location
+  (forall ?y1:Location
+    (forall ?y2:'S
+      (forall ?y3:(DLst 'S)
+        (not (= (dempty ?x1:Location)
+                (dlst ?y1:Location
+                      ?y2:'S
+                      ?y3:(DLst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:(DLst 'S)
+  (or (exists ?x1:Location
+        (= ?v:(DLst 'S)
+           (dempty ?x1:Location)))
+      (exists ?x1:Location
+        (exists ?x2:'S
+          (exists ?x3:(DLst 'S)
+            (= ?v:(DLst 'S)
+               (dlst ?x1:Location
+                     ?x2:'S
+                     ?x3:(DLst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v2415:Location
+  (= (loc (dempty ?v2415:Location))
+     ?v2415:Location))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v2416:Location
+  (forall ?v2417:'S
+    (forall ?v2418:(DLst 'S)
+      (= (lHead (dlst ?v2416:Location
+                      ?v2417:'S
+                      ?v2418:(DLst 'S)))
+         ?v2416:Location))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v2416:Location
+  (forall ?v2417:'S
+    (forall ?v2418:(DLst 'S)
+      (= (vHead (dlst ?v2416:Location
+                      ?v2417:'S
+                      ?v2418:(DLst 'S)))
+         ?v2417:'S))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v2416:Location
+  (forall ?v2417:'S
+    (forall ?v2418:(DLst 'S)
+      (= (vTail (dlst ?v2416:Location
+                      ?v2417:'S
+                      ?v2418:(DLst 'S)))
+         ?v2418:(DLst 'S)))))
+has been added to the assumption base.
+
+Sentence DLst.dlst-no-junk defined.
+
+Sentence DLst.dlst-no-conf defined.
+
+Sentence DLst.dlst-vTail defined.
+
+Sentence DLst.dlst-vHead defined.
+
+Sentence DLst.dlst-dempty-loc defined.
+
+Sentence DLst.dlst-lHead defined.
+
+Term DLst.t defined.
+
+Term DLst.t1 defined.
+
+Term DLst.t2 defined.
+
+Term DLst.h defined.
+
+Term DLst.lh defined.
+
+Term DLst.lh2 defined.
+
+Term DLst.h1 defined.
+
+Term DLst.h2 defined.
+
+Term DLst.le defined.
+
+Term DLst.le1 defined.
+
+Term DLst.le2 defined.
+
+Term DLst.lh1 defined.
+
+New symbol DLst.dlst-equal declared.
+
+The sentence 
+(forall ?le1:Location
+  (forall ?le2:Location
+    (DLst.dlst-equal (dempty ?le1:Location)
+                     (dempty ?le2:Location))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h1:'S
+  (forall ?h2:'S
+    (forall ?t1:(DLst 'S)
+      (forall ?t2:(DLst 'S)
+        (forall ?lh1:Location
+          (forall ?lh2:Location
+            (iff (DLst.dlst-equal (dlst ?lh1:Location
+                                        ?h1:'S
+                                        ?t1:(DLst 'S))
+                                  (dlst ?lh2:Location
+                                        ?h2:'S
+                                        ?t2:(DLst 'S)))
+                 (and (= ?h1:'S ?h2:'S)
+                      (DLst.dlst-equal ?t1:(DLst 'S)
+                                       ?t2:(DLst 'S))))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?le:Location
+      (forall ?lh:Location
+        (not (DLst.dlst-equal (dempty ?le:Location)
+                              (dlst ?lh:Location
+                                    ?h:'S
+                                    ?t:(DLst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?le:Location
+      (forall ?lh:Location
+        (not (DLst.dlst-equal (dlst ?lh:Location
+                                    ?h:'S
+                                    ?t:(DLst 'S))
+                              (dempty ?le:Location)))))))
+has been added to the assumption base.
+
+List DLst.dlst-equal-axioms defined.
+
+Sentence DLst.dlst-equal-c1 defined.
+
+Theorem: (forall ?lh1:Location
+           (forall ?lh2:Location
+             (forall ?h:'S
+               (forall ?t1:(DLst 'S)
+                 (forall ?t2:(DLst 'S)
+                   (if (DLst.dlst-equal ?t1:(DLst 'S)
+                                        ?t2:(DLst 'S))
+                       (DLst.dlst-equal (dlst ?lh1:Location
+                                              ?h:'S
+                                              ?t1:(DLst 'S))
+                                        (dlst ?lh2:Location
+                                              ?h:'S
+                                              ?t2:(DLst 'S)))))))))
+
+New symbol DLst.getHead declared.
+
+New symbol DLst.getTail declared.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (Location.alive ?lh:Location)
+          (= (DLst.getHead (dlst ?lh:Location
+                                 ?h:'S
+                                 ?t:(DLst 'S)))
+             (SOME ?h:'S))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (not (Location.alive ?lh:Location))
+          (= (DLst.getHead (dlst ?lh:Location
+                                 ?h:'S
+                                 ?t:(DLst 'S)))
+             NONE:(Option 'S))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?le:Location
+  (= (DLst.getHead (dempty ?le:Location))
+     NONE:(Option 'S)))
+has been added to the assumption base.
+
+Sentence DLst.dlst-head-alive defined.
+
+Sentence DLst.dlst-head-not-alive defined.
+
+Sentence DLst.dempty-head defined.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (Location.alive ?lh:Location)
+          (= (DLst.getTail (dlst ?lh:Location
+                                 ?h:'S
+                                 ?t:(DLst 'S)))
+             (SOME ?t:(DLst 'S)))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (not (Location.alive ?lh:Location))
+          (= (DLst.getTail (dlst ?lh:Location
+                                 ?h:'S
+                                 ?t:(DLst 'S)))
+             NONE:(Option (DLst 'S)))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?le:Location
+  (= (DLst.getTail (dempty ?le:Location))
+     NONE:(Option (DLst 'S))))
+has been added to the assumption base.
+
+Sentence DLst.dlst-tail-alive defined.
+
+Sentence DLst.dlst-tail-not-alive defined.
+
+Sentence DLst.dempty-tail defined.
+
+Term DLst.dl defined.
+
+Sentence DLst.se-correctness defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (or (= ?dl:(DLst 'S)
+                  (dempty (loc ?dl:(DLst 'S))))
+               (= ?dl:(DLst 'S)
+                  (dlst (lHead ?dl:(DLst 'S))
+                        (vHead ?dl:(DLst 'S))
+                        (vTail ?dl:(DLst 'S))))))
+
+Sentence DLst.head-tail-some-dlst defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (forall ?h:'S
+             (forall ?t:(DLst 'S)
+               (if (and (= (DLst.getHead ?dl:(DLst 'S))
+                           (SOME ?h:'S))
+                        (= (DLst.getTail ?dl:(DLst 'S))
+                           (SOME ?t:(DLst 'S))))
+                   (exists ?lh:Location
+                     (and (= ?dl:(DLst 'S)
+                             (dlst ?lh:Location
+                                   ?h:'S
+                                   ?t:(DLst 'S)))
+                          (Location.alive ?lh:Location)))))))
+
+New symbol DLst.dlst-isEmpty declared.
+
+The sentence 
+(not (= true false))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:Boolean
+  (or (= ?v:Boolean true)
+      (= ?v:Boolean false)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?le:Location
+  (if (Location.alive ?le:Location)
+      (= (DLst.dlst-isEmpty (dempty ?le:Location))
+         (SOME true))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?le:Location
+  (if (not (Location.alive ?le:Location))
+      (= (DLst.dlst-isEmpty (dempty ?le:Location))
+         NONE:(Option Boolean))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (Location.alive ?lh:Location)
+          (= (DLst.dlst-isEmpty (dlst ?lh:Location
+                                      ?h:'S
+                                      ?t:(DLst 'S)))
+             (SOME false))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (if (not (Location.alive ?lh:Location))
+          (= (DLst.dlst-isEmpty (dlst ?lh:Location
+                                      ?h:'S
+                                      ?t:(DLst 'S)))
+             NONE:(Option Boolean))))))
+has been added to the assumption base.
+
+Sentence DLst.dlst-isEmpty-true-alive defined.
+
+Sentence DLst.dlst-isEmpty-true-not-alive defined.
+
+Sentence DLst.dlst-isEmpty-false-alive defined.
+
+Sentence DLst.dlst-isEmpty-false-not-alive defined.
+
+Sentence DLst.dlst-isEmpty-c1 defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (if (= (DLst.dlst-isEmpty ?dl:(DLst 'S))
+                  (SOME true))
+               (exists ?le:Location
+                 (and (= ?dl:(DLst 'S)
+                         (dempty ?le:Location))
+                      (Location.alive ?le:Location)))))
+
+New symbol DLst.equal declared.
+
+Term DLst.t1 defined.
+
+Term DLst.t2 defined.
+
+The sentence 
+(forall ?le:Location
+  (DLst.equal empty:(Lst 'S)
+              (dempty ?le:Location)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (not (DLst.equal empty:(Lst 'S)
+                       (dlst ?lh:Location
+                             ?h:'S
+                             ?t:(DLst 'S)))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h1:'S
+  (forall ?le:Location
+    (forall ?t1:(Lst 'S)
+      (not (DLst.equal (lst ?h1:'S
+                            ?t1:(Lst 'S))
+                       (dempty ?le:Location))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h1:'S
+  (forall ?h2:'S
+    (forall ?lh:Location
+      (forall ?t1:(Lst 'S)
+        (forall ?t2:(DLst 'S)
+          (iff (DLst.equal (lst ?h1:'S
+                                ?t1:(Lst 'S))
+                           (dlst ?lh:Location
+                                 ?h2:'S
+                                 ?t2:(DLst 'S)))
+               (and (= ?h1:'S ?h2:'S)
+                    (DLst.equal ?t1:(Lst 'S)
+                                ?t2:(DLst 'S)))))))))
+has been added to the assumption base.
+
+List DLst.lst-dlst-equal-axioms defined.
+
+Sentence DLst.dlempty-lemma defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (if (DLst.equal empty:(Lst 'S)
+                           ?dl:(DLst 'S))
+               (exists ?le:Location
+                 (= ?dl:(DLst 'S)
+                    (dempty ?le:Location)))))
+
+New symbol DLst.canonical declared.
+
+The sentence 
+(forall ?le:Location
+  (= (DLst.canonical (dempty ?le:Location))
+     empty:(Lst 'S)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (= (DLst.canonical (dlst ?lh:Location
+                               ?h:'S
+                               ?t:(DLst 'S)))
+         (lst ?h:'S
+              (DLst.canonical ?t:(DLst 'S)))))))
+has been added to the assumption base.
+
+Sentence DLst.canonical-equal defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (DLst.equal (DLst.canonical ?dl:(DLst 'S))
+                       ?dl:(DLst 'S)))
+
+New symbol DLst.Equiv declared.
+
+Term DLst.l defined.
+
+Term DLst.dl defined.
+
+The sentence 
+(forall ?l:(Lst 'S)
+  (forall ?dl:(DLst 'S)
+    (iff (DLst.Equiv ?l:(Lst 'S)
+                     ?dl:(DLst 'S))
+         (or (and (Lst.isEmpty ?l:(Lst 'S))
+                  (= (DLst.dlst-isEmpty ?dl:(DLst 'S))
+                     (SOME true)))
+             (and (not (Lst.isEmpty ?l:(Lst 'S)))
+                  (and (= (DLst.getHead ?dl:(DLst 'S))
+                          (SOME (head ?l:(Lst 'S))))
+                       (exists ?t:(DLst 'S)
+                         (and (= (DLst.getTail ?dl:(DLst 'S))
+                                 (SOME ?t:(DLst 'S)))
+                              (DLst.Equiv (tail ?l:(Lst 'S))
+                                          ?t:(DLst 'S))))))))))
+has been added to the assumption base.
+
+Sentence DLst.empty-Equiv-lemma defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (Lst.isEmpty ?l:(Lst 'S))
+                      (= (DLst.dlst-isEmpty ?dl:(DLst 'S))
+                         (SOME true)))
+                 (DLst.Equiv ?l:(Lst 'S)
+                             ?dl:(DLst 'S)))))
+
+Sentence DLst.empty-Equiv-alive defined.
+
+Theorem: (forall ?le:Location
+           (if (Location.alive ?le:Location)
+               (DLst.Equiv empty:(Lst 'S)
+                           (dempty ?le:Location))))
+
+Term DLst.empty-no-local-failure defined.
+
+Theorem: (DLst.Equiv empty:(Lst 'S)
+                     (dempty Location.localhost))
+
+Sentence DLst.lst-dlst-Equiv-c1 defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (Lst.isEmpty ?l:(Lst 'S)))
+                 (= (DLst.dlst-isEmpty ?dl:(DLst 'S))
+                    (SOME true)))))
+
+Sentence DLst.lst-dlst-Equiv-c1-ea defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (Lst.isEmpty ?l:(Lst 'S)))
+                 (exists ?le:Location
+                   (and (= ?dl:(DLst 'S)
+                           (dempty ?le:Location))
+                        (Location.alive ?le:Location))))))
+
+Sentence DLst.lst-dlst-Equiv-c1-e defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (Lst.isEmpty ?l:(Lst 'S)))
+                 (exists ?le:Location
+                   (= ?dl:(DLst 'S)
+                      (dempty ?le:Location))))))
+
+Procedure DLst.either-case defined.
+
+Sentence DLst.lst-dlst-Equiv-c2 defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (not (Lst.isEmpty ?l:(Lst 'S))))
+                 (and (= (DLst.getHead ?dl:(DLst 'S))
+                         (SOME (head ?l:(Lst 'S))))
+                      (exists ?t:(DLst 'S)
+                        (and (= (DLst.getTail ?dl:(DLst 'S))
+                                (SOME ?t:(DLst 'S)))
+                             (DLst.Equiv (tail ?l:(Lst 'S))
+                                         ?t:(DLst 'S))))))))
+
+Sentence DLst.lst-dlst-Equiv-c2-h defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (not (Lst.isEmpty ?l:(Lst 'S))))
+                 (= (DLst.getHead ?dl:(DLst 'S))
+                    (SOME (head ?l:(Lst 'S)))))))
+
+Sentence DLst.lst-dlst-Equiv-c2-t defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.Equiv ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (not (Lst.isEmpty ?l:(Lst 'S))))
+                 (exists ?t:(DLst 'S)
+                   (and (= (DLst.getTail ?dl:(DLst 'S))
+                           (SOME ?t:(DLst 'S)))
+                        (DLst.Equiv (tail ?l:(Lst 'S))
+                                    ?t:(DLst 'S)))))))
+
+Sentence DLst.lst-dlst-Equiv-c2-ae defined.
+
+Theorem: (forall ?h:'S
+           (forall ?t1:(Lst 'S)
+             (forall ?dl:(DLst 'S)
+               (if (DLst.Equiv (lst ?h:'S
+                                    ?t1:(Lst 'S))
+                               ?dl:(DLst 'S))
+                   (exists ?lh:Location
+                     (exists ?t2:(DLst 'S)
+                       (and (= ?dl:(DLst 'S)
+                               (dlst ?lh:Location
+                                     ?h:'S
+                                     ?t2:(DLst 'S)))
+                            (and (Location.alive ?lh:Location)
+                                 (DLst.Equiv ?t1:(Lst 'S)
+                                             ?t2:(DLst 'S))))))))))
+
+Term DLst.dl1 defined.
+
+Term DLst.dl2 defined.
+
+Term DLst.dt defined.
+
+Term DLst.dt1 defined.
+
+Term DLst.dt2 defined.
+
+Sentence DLst.lst-dlst-Equiv-equal defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl1:(DLst 'S)
+             (forall ?dl2:(DLst 'S)
+               (if (and (DLst.Equiv ?l:(Lst 'S)
+                                    ?dl1:(DLst 'S))
+                        (DLst.Equiv ?l:(Lst 'S)
+                                    ?dl2:(DLst 'S)))
+                   (DLst.dlst-equal ?dl1:(DLst 'S)
+                                    ?dl2:(DLst 'S))))))
+
+Term DLst.t1 defined.
+
+Term DLst.t2 defined.
+
+Sentence DLst.no-local-failures defined.
+
+Theorem: (forall ?h:'S
+           (forall ?t1:(Lst 'S)
+             (forall ?t2:(DLst 'S)
+               (if (DLst.Equiv ?t1:(Lst 'S)
+                               ?t2:(DLst 'S))
+                   (DLst.Equiv (lst ?h:'S
+                                    ?t1:(Lst 'S))
+                               (dlst Location.localhost
+                                     ?h:'S
+                                     ?t2:(DLst 'S)))))))
+
+New symbol DLst.alive-dlst declared.
+
+The sentence 
+(forall ?le:Location
+  (iff (DLst.alive-dlst (dempty ?le:Location))
+       (Location.alive ?le:Location)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?h:'S
+  (forall ?t:(DLst 'S)
+    (forall ?lh:Location
+      (iff (DLst.alive-dlst (dlst ?lh:Location
+                                  ?h:'S
+                                  ?t:(DLst 'S)))
+           (and (Location.alive ?lh:Location)
+                (DLst.alive-dlst ?t:(DLst 'S)))))))
+has been added to the assumption base.
+
+List DLst.alive-dlst-def defined.
+
+Sentence DLst.lst-dlst-no-failures defined.
+
+Theorem: (forall ?l:(Lst 'S)
+           (forall ?dl:(DLst 'S)
+             (if (and (DLst.equal ?l:(Lst 'S)
+                                  ?dl:(DLst 'S))
+                      (DLst.alive-dlst ?dl:(DLst 'S)))
+                 (DLst.Equiv ?l:(Lst 'S)
+                             ?dl:(DLst 'S)))))
+
+Sentence DLst.canonical-Equiv defined.
+
+Theorem: (forall ?dl:(DLst 'S)
+           (if (DLst.alive-dlst ?dl:(DLst 'S))
+               (DLst.Equiv (DLst.canonical ?dl:(DLst 'S))
+                           ?dl:(DLst 'S))))
+
+Sentence DLst.lst-dlst-Equiv-alive defined.
+
+Sentence DLst.lst-dlst-Equiv-alive-e defined.
+
+Sentence DLst.lst-dlst-Equiv-alive-ne defined.
+
+New symbol DLst.dlst-Equiv declared.
+
+Term DLst.t1 defined.
+
+Term DLst.t2 defined.
+
+Term DLst.dl1 defined.
+
+Term DLst.dl2 defined.
+
+The sentence 
+(forall ?dl1:(DLst 'S)
+  (forall ?dl2:(DLst 'S)
+    (iff (DLst.dlst-Equiv ?dl1:(DLst 'S)
+                          ?dl2:(DLst 'S))
+         (or (and (= (DLst.dlst-isEmpty ?dl1:(DLst 'S))
+                     (SOME true))
+                  (= (DLst.dlst-isEmpty ?dl2:(DLst 'S))
+                     (SOME true)))
+             (and (= (DLst.dlst-isEmpty ?dl1:(DLst 'S))
+                     (SOME false))
+                  (and (= (DLst.dlst-isEmpty ?dl2:(DLst 'S))
+                          (SOME false))
+                       (exists ?h1:'S
+                         (exists ?h2:'S
+                           (exists ?t1:(DLst 'S)
+                             (exists ?t2:(DLst 'S)
+                               (and (= (DLst.getHead ?dl1:(DLst 'S))
+                                       (SOME ?h1:'S))
+                                    (and (= (DLst.getHead ?dl2:(DLst 'S))
+                                            (SOME ?h2:'S))
+                                         (and (= ?h1:'S ?h2:'S)
+                                              (and (= (DLst.getTail ?dl1:(DLst 'S))
+                                                      (SOME ?t1:(DLst 'S)))
+                                                   (and (= (DLst.getTail ?dl2:(DLst 'S))
+                                                           (SOME ?t2:(DLst 'S)))
+                                                        (DLst.dlst-Equiv ?t1:(DLst 'S)
+                                                                         ?t2:(DLst 'S)))))))))))))))))
+has been added to the assumption base.
+
+Sentence DLst.dlst-empty-Equiv-lemma defined.
+
+Theorem: (forall ?dl1:(DLst 'S)
+           (forall ?dl2:(DLst 'S)
+             (if (and (= (DLst.dlst-isEmpty ?dl1:(DLst 'S))
+                         (SOME true))
+                      (= (DLst.dlst-isEmpty ?dl2:(DLst 'S))
+                         (SOME true)))
+                 (DLst.dlst-Equiv ?dl1:(DLst 'S)
+                                  ?dl2:(DLst 'S)))))
+
+Sentence DLst.dlst-non-empty-Equiv-lemma defined.
+
+Theorem: (forall ?dl1:(DLst 'S)
+           (forall ?dl2:(DLst 'S)
+             (if (and (= (DLst.dlst-isEmpty ?dl1:(DLst 'S))
+                         (SOME false))
+                      (and (= (DLst.dlst-isEmpty ?dl2:(DLst 'S))
+                              (SOME false))
+                           (exists ?h1:'S
+                             (exists ?h2:'S
+                               (exists ?t1:(DLst 'S)
+                                 (exists ?t2:(DLst 'S)
+                                   (and (= (DLst.getHead ?dl1:(DLst 'S))
+                                           (SOME ?h1:'S))
+                                        (and (= (DLst.getHead ?dl2:(DLst 'S))
+                                                (SOME ?h2:'S))
+                                             (and (= ?h1:'S ?h2:'S)
+                                                  (and (= (DLst.getTail ?dl1:(DLst 'S))
+                                                          (SOME ?t1:(DLst 'S)))
+                                                       (and (= (DLst.getTail ?dl2:(DLst 'S))
+                                                               (SOME ?t2:(DLst 'S)))
+                                                            (DLst.dlst-Equiv ?t1:(DLst 'S)
+                                                                             ?t2:(DLst 'S)))))))))))))
+                 (DLst.dlst-Equiv ?dl1:(DLst 'S)
+                                  ?dl2:(DLst 'S)))))
+
+Sentence DLst.dlst-Equiv-no-failures defined.
+
+Method DLst.dlst-Equiv-empty-empty defined.
+
+Method DLst.dlst-Equiv-empty-lst defined.
+
+Method DLst.dlst-Equiv-lst-empty defined.
+
+Method DLst.both* defined.
+
+Method DLst.dlst-Equiv-lst-lst defined.
+
+Theorem: (forall ?dl1:(DLst 'S)
+           (forall ?dl2:(DLst 'S)
+             (if (and (= ?dl1:(DLst 'S)
+                         ?dl2:(DLst 'S))
+                      (and (DLst.alive-dlst ?dl1:(DLst 'S))
+                           (DLst.alive-dlst ?dl2:(DLst 'S))))
+                 (DLst.dlst-Equiv ?dl1:(DLst 'S)
+                                  ?dl2:(DLst 'S)))))
+
+New symbol DLst.dlst-Equiv'' declared.
+
+The sentence 
+(forall ?t1:(DLst 'S)
+  (forall ?t2:(DLst 'S)
+    (forall ?dl1:(DLst 'S)
+      (forall ?dl2:(DLst 'S)
+        (iff (DLst.dlst-Equiv'' ?dl1:(DLst 'S)
+                                ?dl2:(DLst 'S))
+             (and (= (DLst.dlst-isEmpty ?dl1:(DLst 'S))
+                     (DLst.dlst-isEmpty ?dl2:(DLst 'S)))
+                  (and (= (DLst.getHead ?dl1:(DLst 'S))
+                          (DLst.getHead ?dl2:(DLst 'S)))
+                       (or (and (= (DLst.getTail ?dl1:(DLst 'S))
+                                   (SOME ?t1:(DLst 'S)))
+                                (and (= (DLst.getTail ?dl2:(DLst 'S))
+                                        (SOME ?t2:(DLst 'S)))
+                                     (DLst.dlst-Equiv'' ?t1:(DLst 'S)
+                                                        ?t2:(DLst 'S))))
+                           (and (= (DLst.getTail ?dl1:(DLst 'S))
+                                   NONE:(Option (DLst 'S)))
+                                (= (DLst.getTail ?dl2:(DLst 'S))
+                                   NONE:(Option (DLst 'S))))))))))))
+has been added to the assumption base.
+
+New symbol DLst.dlst-Equiv' declared.
+
+The sentence 
+(forall ?dl1:(DLst 'S)
+  (forall ?dl2:(DLst 'S)
+    (iff (DLst.dlst-Equiv' ?dl1:(DLst 'S)
+                           ?dl2:(DLst 'S))
+         (exists ?l:(Lst 'S)
+           (and (DLst.Equiv ?l:(Lst 'S)
+                            ?dl1:(DLst 'S))
+                (DLst.Equiv ?l:(Lst 'S)
+                            ?dl2:(DLst 'S)))))))
+has been added to the assumption base.
+
+Module DLst defined.
+
+OK.
+
+Loading file "/home/mateosa/Onedrive/Doctorado/Projects/Athena/CCGRID26/Code/function.ath"
+
+New domain Function.fn introduced.
+
+New symbol Function.at declared.
+
+New symbol Function.identity declared.
+
+New symbol Function.o declared.
+
+OK.
+
+Term Function.x defined.
+
+Term Function.f defined.
+
+Term Function.g defined.
+
+Term Function.y defined.
+
+Term Function.h defined.
+
+Term Function.x' defined.
+
+Sentence Function.identity-definition defined.
+
+Sentence Function.compose-definition defined.
+
+Sentence Function.fnction-equality defined.
+
+Map Function.theory defined.
+
+Sentence Function.associative defined.
+
+Sentence Function.right-identity defined.
+
+Sentence Function.left-identity defined.
+
+List Function.Monoid-theorems defined.
+
+Method Function.proofs defined.
+
+Unit: ()
+
+New symbol Function.surjective declared.
+
+New symbol Function.injective declared.
+
+New symbol Function.bijective declared.
+
+Sentence Function.surjective-definition defined.
+
+Sentence Function.injective-definition defined.
+
+Sentence Function.bijective-definition defined.
+
+Unit: ()
+
+Term Function.identity-surjective defined.
+
+Term Function.identity-injective defined.
+
+Term Function.identity-bijective defined.
+
+Sentence Function.compose-surjective-preserving defined.
+
+Sentence Function.compose-injective-preserving defined.
+
+Sentence Function.compose-bijective-preserving defined.
+
+List Function.Inverse-theorems defined.
+
+Method Function.proofs-1 defined.
+
+Unit: ()
+
+Method Function.proofs defined.
+
+Unit: ()
+
+Method Function.proof defined.
+
+Unit: ()
+
+Method Function.proof defined.
+
+Unit: ()
+
+Module Function defined.
+
+OK.
+
+Term DL_L_S.f defined.
+
+Term DL_L_S.b defined.
+
+Term DL_L_S.s0 defined.
+
+Term DL_L_S.sets defined.
+
+Term DL_L_S.lsts defined.
+
+Term DL_L_S.lsts1 defined.
+
+Term DL_L_S.lsts2 defined.
+
+Term DL_L_S.tail_s defined.
+
+Term DL_L_S.tail_l1 defined.
+
+Term DL_L_S.tail_l2 defined.
+
+Term DL_L_S.l1 defined.
+
+Term DL_L_S.l2 defined.
+
+Term DL_L_S.v defined.
+
+Term DL_L_S.head defined.
+
+Term DL_L_S.s defined.
+
+Term DL_L_S.v0 defined.
+
+Term DL_L_S.htv defined.
+
+Term DL_L_S.n defined.
+
+Term DL_L_S.rv defined.
+
+Term DL_L_S.rv0 defined.
+
+Term DL_L_S.bucket defined.
+
+Term DL_L_S.bucket0 defined.
+
+Term DL_L_S.dlls defined.
+
+Term DL_L_S.tail_dlls defined.
+
+Term DL_L_S.o_dlls defined.
+
+Term DL_L_S.dlls1 defined.
+
+Term DL_L_S.dlls2 defined.
+
+Term DL_L_S.o_dlls1 defined.
+
+Term DL_L_S.o_dlls2 defined.
+
+Term DL_L_S.R defined.
+
+Term DL_L_S.B defined.
+
+Term DL_L_S.l defined.
+
+Term DL_L_S.l0 defined.
+
+Term DL_L_S.lh defined.
+
+Term DL_L_S.htl defined.
+
+Term DL_L_S.htl0 defined.
+
+Term DL_L_S.ll defined.
+
+Term DL_L_S.tail_l defined.
+
+Term DL_L_S.tail_l0 defined.
+
+Term DL_L_S.olh defined.
+
+Term DL_L_S.olsts defined.
+
+Term DL_L_S.otail_dlls defined.
+
+Term DL_L_S.lsts2 defined.
+
+Term DL_L_S.lh2 defined.
+
+Term DL_L_S.tail_dlls2 defined.
+
+New symbol DL_L_S.initDPrList declared.
+
+The sentence 
+(forall ?f:(Function.fn 'S N)
+  (forall ?htl0:Location
+    (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                           ?htl0:Location
+                           empty:(Lst Location))
+       (dempty ?htl0:Location))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?f:(Function.fn 'S N)
+  (forall ?l:Location
+    (forall ?htl0:Location
+      (forall ?tail_l:(Lst Location)
+        (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                               ?htl0:Location
+                               (lst ?l:Location
+                                    ?tail_l:(Lst Location)))
+           (dlst ?l:Location
+                 empty:(Lst 'S)
+                 (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                     ?htl0:Location
+                                     ?tail_l:(Lst Location))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.initDPrList_char_aux defined.
+
+Theorem: (forall ?ll:(Lst Location)
+           (forall ?f:(Function.fn 'S N)
+             (forall ?htl:Location
+               (or (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                          ?htl:Location
+                                          ?ll:(Lst Location))
+                      (dempty ?htl:Location))
+                   (exists ?l:Location
+                     (exists ?tail_l:(Lst Location)
+                       (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                              ?htl:Location
+                                              ?ll:(Lst Location))
+                          (dlst ?l:Location
+                                empty:(Lst 'S)
+                                (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                    ?htl:Location
+                                                    ?tail_l:(Lst Location))))))))))
+
+Sentence DL_L_S.initDPrList_characterization defined.
+
+Theorem: (forall ?f:(Function.fn 'S N)
+           (forall ?htl:Location
+             (forall ?ll:(Lst Location)
+               (or (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                          ?htl:Location
+                                          ?ll:(Lst Location))
+                      (dempty ?htl:Location))
+                   (exists ?l:Location
+                     (exists ?tail_l:(Lst Location)
+                       (= (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                              ?htl:Location
+                                              ?ll:(Lst Location))
+                          (dlst ?l:Location
+                                empty:(Lst 'S)
+                                (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                    ?htl:Location
+                                                    ?tail_l:(Lst Location))))))))))
+
+New symbol DL_L_S.insertNAt declared.
+
+The sentence 
+(forall ?v:'S
+  (forall ?dlls:(DLst (Lst 'S))
+    (forall ?bucket:N
+      (= (DL_L_S.insertNAt ?bucket:N
+                           zero
+                           ?v:'S
+                           ?dlls:(DLst (Lst 'S)))
+         ?dlls:(DLst (Lst 'S))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?v:'S
+    (forall ?htl:Location
+      (forall ?bucket:N
+        (= (DL_L_S.insertNAt ?bucket:N
+                             (S ?n:N)
+                             ?v:'S
+                             (dempty ?htl:Location))
+           (dempty ?htl:Location))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?v:'S
+    (forall ?lh:Location
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'S))
+          (= (DL_L_S.insertNAt zero
+                               (S ?n:N)
+                               ?v:'S
+                               (dlst ?lh:Location
+                                     ?lsts:(Lst 'S)
+                                     ?tail_dlls:(DLst (Lst 'S))))
+             (dlst ?lh:Location
+                   (lst ?v:'S
+                        ?lsts:(Lst 'S))
+                   (DL_L_S.insertNAt zero
+                                     ?n:N
+                                     ?v:'S
+                                     ?tail_dlls:(DLst (Lst 'S))))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?v:'S
+    (forall ?lh:Location
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'S))
+          (forall ?bucket:N
+            (= (DL_L_S.insertNAt (S ?bucket:N)
+                                 (S ?n:N)
+                                 ?v:'S
+                                 (dlst ?lh:Location
+                                       ?lsts:(Lst 'S)
+                                       ?tail_dlls:(DLst (Lst 'S))))
+               (dlst ?lh:Location
+                     ?lsts:(Lst 'S)
+                     (DL_L_S.insertNAt ?bucket:N
+                                       (S ?n:N)
+                                       ?v:'S
+                                       ?tail_dlls:(DLst (Lst 'S)))))))))))
+has been added to the assumption base.
+
+New symbol DL_L_S.countWraps declared.
+
+The sentence 
+(forall ?dlls:(DLst (Lst 'S))
+  (forall ?bucket:N
+    (= (DL_L_S.countWraps ?bucket:N
+                          zero
+                          ?dlls:(DLst (Lst 'S)))
+       zero)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?htl:Location
+    (forall ?bucket:N
+      (= (DL_L_S.countWraps ?bucket:N
+                            (S ?n:N)
+                            (dempty ?htl:Location))
+         (S ?n:N)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (= (DL_L_S.countWraps zero
+                              (S ?n:N)
+                              (dlst ?lh:Location
+                                    ?lsts:(Lst 'S)
+                                    ?tail_dlls:(DLst (Lst 'S))))
+           (DL_L_S.countWraps zero
+                              ?n:N
+                              ?tail_dlls:(DLst (Lst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?bucket:N
+          (= (DL_L_S.countWraps (S ?bucket:N)
+                                (S ?n:N)
+                                (dlst ?lh:Location
+                                      ?lsts:(Lst 'S)
+                                      ?tail_dlls:(DLst (Lst 'S))))
+             (DL_L_S.countWraps ?bucket:N
+                                (S ?n:N)
+                                ?tail_dlls:(DLst (Lst 'S)))))))))
+has been added to the assumption base.
+
+New symbol DL_L_S.bucketIndex declared.
+
+The sentence 
+(forall ?n:N
+  (forall ?htl:Location
+    (forall ?htl0:Location
+      (forall ?bucket:N
+        (= (DL_L_S.bucketIndex ?bucket:N
+                               (dempty ?htl0:Location)
+                               (dempty ?htl:Location)
+                               ?n:N)
+           zero)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?o_dlls:(DLst (Lst 'S))
+          (= (DL_L_S.bucketIndex zero
+                                 (dlst ?lh:Location
+                                       ?lsts:(Lst 'S)
+                                       ?tail_dlls:(DLst (Lst 'S)))
+                                 ?o_dlls:(DLst (Lst 'S))
+                                 ?n:N)
+             ?n:N))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?bucket:N
+          (forall ?o_dlls:(DLst (Lst 'S))
+            (= (DL_L_S.bucketIndex (S ?bucket:N)
+                                   (dlst ?lh:Location
+                                         ?lsts:(Lst 'S)
+                                         ?tail_dlls:(DLst (Lst 'S)))
+                                   ?o_dlls:(DLst (Lst 'S))
+                                   ?n:N)
+               (DL_L_S.bucketIndex ?bucket:N
+                                   ?tail_dlls:(DLst (Lst 'S))
+                                   ?o_dlls:(DLst (Lst 'S))
+                                   (S ?n:N)))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?htl:Location
+    (forall ?olh:Location
+      (forall ?olsts:(Lst 'S)
+        (forall ?otail_dlls:(DLst (Lst 'S))
+          (forall ?bucket:N
+            (= (DL_L_S.bucketIndex ?bucket:N
+                                   (dempty ?htl:Location)
+                                   (dlst ?olh:Location
+                                         ?olsts:(Lst 'S)
+                                         ?otail_dlls:(DLst (Lst 'S)))
+                                   ?n:N)
+               (DL_L_S.bucketIndex ?bucket:N
+                                   (dlst ?olh:Location
+                                         ?olsts:(Lst 'S)
+                                         ?otail_dlls:(DLst (Lst 'S)))
+                                   (dlst ?olh:Location
+                                         ?olsts:(Lst 'S)
+                                         ?otail_dlls:(DLst (Lst 'S)))
+                                   zero))))))))
+has been added to the assumption base.
+
+New symbol DL_L_S.insertDPrList declared.
+
+The sentence 
+(forall ?v:'S
+  (forall ?rv:N
+    (forall ?dlls:(DLst (Lst 'S))
+      (forall ?bucket:N
+        (= (DL_L_S.insertDPrList ?bucket:N
+                                 ?rv:N
+                                 ?v:'S
+                                 ?dlls:(DLst (Lst 'S)))
+           (DL_L_S.insertNAt zero
+                             (DL_L_S.countWraps (DL_L_S.bucketIndex ?bucket:N
+                                                                    ?dlls:(DLst (Lst 'S))
+                                                                    ?dlls:(DLst (Lst 'S))
+                                                                    zero)
+                                                (S ?rv:N)
+                                                ?dlls:(DLst (Lst 'S)))
+                             ?v:'S
+                             (DL_L_S.insertNAt (DL_L_S.bucketIndex ?bucket:N
+                                                                   ?dlls:(DLst (Lst 'S))
+                                                                   ?dlls:(DLst (Lst 'S))
+                                                                   zero)
+                                               (S ?rv:N)
+                                               ?v:'S
+                                               ?dlls:(DLst (Lst 'S)))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.insert_empty_bucket defined.
+
+Theorem: (forall ?lh:Location
+           (forall ?tail_dlls:(DLst (Lst 'S))
+             (forall ?v:'S
+               (= (DL_L_S.insertDPrList zero
+                                        zero
+                                        ?v:'S
+                                        (dlst ?lh:Location
+                                              empty:(Lst 'S)
+                                              ?tail_dlls:(DLst (Lst 'S))))
+                  (dlst ?lh:Location
+                        (lst ?v:'S
+                             empty:(Lst 'S))
+                        ?tail_dlls:(DLst (Lst 'S)))))))
+
+Sentence DL_L_S.insert_into_empty_dlls defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?htl:Location
+                 (= (DL_L_S.insertDPrList ?bucket:N
+                                          ?rv:N
+                                          ?v:'S
+                                          (dempty ?htl:Location))
+                    (dempty ?htl:Location))))))
+
+New symbol DL_L_S.dlls_locs declared.
+
+The sentence 
+(forall ?htl:Location
+  (= (DL_L_S.dlls_locs (dempty ?htl:Location))
+     empty:(Lst Location)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?tail_dlls:(DLst (Lst 'S))
+      (= (DL_L_S.dlls_locs (dlst ?lh:Location
+                                 ?lsts:(Lst 'S)
+                                 ?tail_dlls:(DLst (Lst 'S))))
+         (lst ?lh:Location
+              (DL_L_S.dlls_locs ?tail_dlls:(DLst (Lst 'S))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.locs_lst_implies_dlst defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?l:Location
+             (forall ?tail_l:(Lst Location)
+               (if (= (DL_L_S.dlls_locs ?dlls:(DLst (Lst 'S)))
+                      (lst ?l:Location
+                           ?tail_l:(Lst Location)))
+                   (exists ?lh:Location
+                     (exists ?lsts:(Lst 'S)
+                       (exists ?tail_dlls:(DLst (Lst 'S))
+                         (= ?dlls:(DLst (Lst 'S))
+                            (dlst ?lh:Location
+                                  ?lsts:(Lst 'S)
+                                  ?tail_dlls:(DLst (Lst 'S)))))))))))
+
+Sentence DL_L_S.insertNAt_preserves_locs defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?bucket:N
+             (forall ?n:N
+               (forall ?v:'S
+                 (= (DL_L_S.dlls_locs (DL_L_S.insertNAt ?bucket:N
+                                                        ?n:N
+                                                        ?v:'S
+                                                        ?dlls:(DLst (Lst 'S))))
+                    (DL_L_S.dlls_locs ?dlls:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.insertDPrList_preserves_locs defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (= (DL_L_S.dlls_locs (DL_L_S.insertDPrList ?bucket:N
+                                                            ?rv:N
+                                                            ?v:'S
+                                                            ?dlls:(DLst (Lst 'S))))
+                    (DL_L_S.dlls_locs ?dlls:(DLst (Lst 'S))))))))
+
+New symbol DL_L_S.in declared.
+
+The sentence 
+(forall ?rv:N
+  (forall ?htl:Location
+    (forall ?htv:'S
+      (forall ?htl0:Location
+        (forall ?bucket:N
+          (iff (DL_L_S.in ?bucket:N
+                          ?rv:N
+                          (dempty ?htl0:Location)
+                          (dempty ?htl:Location)
+                          ?htv:'S)
+               false))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?htv:'S
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?o_dlls:(DLst (Lst 'S))
+          (iff (DL_L_S.in zero
+                          zero
+                          (dlst ?lh:Location
+                                ?lsts:(Lst 'S)
+                                ?tail_dlls:(DLst (Lst 'S)))
+                          ?o_dlls:(DLst (Lst 'S))
+                          ?htv:'S)
+               (Lst.in ?htv:'S
+                       ?lsts:(Lst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?htv:'S
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'T))
+          (forall ?o_dlls:(DLst (Lst 'T))
+            (if (Lst.in ?htv:'S
+                        ?lsts:(Lst 'S))
+                (iff (DL_L_S.in zero
+                                (S ?rv:N)
+                                (dlst ?lh:Location
+                                      ?lsts:(Lst 'S)
+                                      ?tail_dlls:(DLst (Lst 'T)))
+                                ?o_dlls:(DLst (Lst 'T))
+                                ?htv:'S)
+                     true))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?htv:'S
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'T))
+          (forall ?o_dlls:(DLst (Lst 'T))
+            (if (not (Lst.in ?htv:'S
+                             ?lsts:(Lst 'S)))
+                (iff (DL_L_S.in zero
+                                (S ?rv:N)
+                                (dlst ?lh:Location
+                                      ?lsts:(Lst 'S)
+                                      ?tail_dlls:(DLst (Lst 'T)))
+                                ?o_dlls:(DLst (Lst 'T))
+                                ?htv:'S)
+                     (DL_L_S.in zero
+                                ?rv:N
+                                ?tail_dlls:(DLst (Lst 'T))
+                                ?o_dlls:(DLst (Lst 'T))
+                                ?htv:'S)))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?htv:'S
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'S))
+          (forall ?bucket:N
+            (forall ?o_dlls:(DLst (Lst 'S))
+              (iff (DL_L_S.in (S ?bucket:N)
+                              ?rv:N
+                              (dlst ?lh:Location
+                                    ?lsts:(Lst 'S)
+                                    ?tail_dlls:(DLst (Lst 'S)))
+                              ?o_dlls:(DLst (Lst 'S))
+                              ?htv:'S)
+                   (DL_L_S.in ?bucket:N
+                              ?rv:N
+                              ?tail_dlls:(DLst (Lst 'S))
+                              ?o_dlls:(DLst (Lst 'S))
+                              ?htv:'S)))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?rv:N
+  (forall ?htl:Location
+    (forall ?htv:'S
+      (forall ?olh:Location
+        (forall ?olsts:(Lst 'S)
+          (forall ?otail_dlls:(DLst (Lst 'S))
+            (forall ?bucket:N
+              (iff (DL_L_S.in ?bucket:N
+                              ?rv:N
+                              (dempty ?htl:Location)
+                              (dlst ?olh:Location
+                                    ?olsts:(Lst 'S)
+                                    ?otail_dlls:(DLst (Lst 'S)))
+                              ?htv:'S)
+                   (DL_L_S.in ?bucket:N
+                              ?rv:N
+                              (dlst ?olh:Location
+                                    ?olsts:(Lst 'S)
+                                    ?otail_dlls:(DLst (Lst 'S)))
+                              (dlst ?olh:Location
+                                    ?olsts:(Lst 'S)
+                                    ?otail_dlls:(DLst (Lst 'S)))
+                              ?htv:'S)))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.in_init_false_lsts defined.
+
+Theorem: (forall ?lsts1:(Lst Location)
+           (forall ?lsts2:(Lst Location)
+             (forall ?f:(Function.fn 'S N)
+               (forall ?v:'S
+                 (forall ?htl:Location
+                   (not (DL_L_S.in zero
+                                   zero
+                                   (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                       ?htl:Location
+                                                       ?lsts1:(Lst Location))
+                                   (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                       ?htl:Location
+                                                       ?lsts2:(Lst Location))
+                                   ?v:'S)))))))
+
+Sentence DL_L_S.in_init_false_rv defined.
+
+Theorem: (forall ?rv:N
+           (forall ?lsts1:(Lst Location)
+             (forall ?lsts2:(Lst Location)
+               (forall ?f:(Function.fn 'S N)
+                 (forall ?v:'S
+                   (forall ?htl:Location
+                     (not (DL_L_S.in zero
+                                     ?rv:N
+                                     (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                         ?htl:Location
+                                                         ?lsts1:(Lst Location))
+                                     (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                         ?htl:Location
+                                                         ?lsts2:(Lst Location))
+                                     ?v:'S))))))))
+
+Sentence DL_L_S.in_init_false_aux defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?lsts1:(Lst Location)
+               (forall ?lsts2:(Lst Location)
+                 (forall ?f:(Function.fn 'S N)
+                   (forall ?v:'S
+                     (forall ?htl:Location
+                       (if (DL_L_S.in ?bucket:N
+                                      ?rv:N
+                                      (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                          ?htl:Location
+                                                          ?lsts1:(Lst Location))
+                                      (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                          ?htl:Location
+                                                          ?lsts2:(Lst Location))
+                                      ?v:'S)
+                           false))))))))
+
+Sentence DL_L_S.in_init_false defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?lsts:(Lst Location)
+               (forall ?f:(Function.fn 'S N)
+                 (forall ?v:'S
+                   (forall ?htl:Location
+                     (iff (DL_L_S.in ?bucket:N
+                                     ?rv:N
+                                     (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                         ?htl:Location
+                                                         ?lsts:(Lst Location))
+                                     (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                         ?htl:Location
+                                                         ?lsts:(Lst Location))
+                                     ?v:'S)
+                          false)))))))
+
+Sentence DL_L_S.in_head_v_true defined.
+
+Theorem: (forall ?rv:N
+           (forall ?lh:Location
+             (forall ?lsts1:(Lst 'S)
+               (forall ?tail_dlls:(DLst (Lst 'S))
+                 (forall ?o_dlls:(DLst (Lst 'S))
+                   (forall ?v:'S
+                     (DL_L_S.in zero
+                                ?rv:N
+                                (dlst ?lh:Location
+                                      (lst ?v:'S
+                                           ?lsts1:(Lst 'S))
+                                      ?tail_dlls:(DLst (Lst 'S)))
+                                ?o_dlls:(DLst (Lst 'S))
+                                ?v:'S)))))))
+
+Sentence DL_L_S.in_after_insertNAt_zero_with_v_head defined.
+
+Theorem: (forall ?w:N
+           (forall ?rv:N
+             (forall ?lh:Location
+               (forall ?lsts1:(Lst 'S)
+                 (forall ?tail_dlls:(DLst (Lst 'S))
+                   (forall ?o_dlls:(DLst (Lst 'S))
+                     (forall ?v:'S
+                       (DL_L_S.in zero
+                                  ?rv:N
+                                  (DL_L_S.insertNAt zero
+                                                    ?w:N
+                                                    ?v:'S
+                                                    (dlst ?lh:Location
+                                                          (lst ?v:'S
+                                                               ?lsts1:(Lst 'S))
+                                                          ?tail_dlls:(DLst (Lst 'S))))
+                                  ?o_dlls:(DLst (Lst 'S))
+                                  ?v:'S))))))))
+
+Sentence DL_L_S.in_after_insert_self_bucket_zero defined.
+
+Theorem: (forall ?rv:N
+           (forall ?lh:Location
+             (forall ?lsts:(Lst 'S)
+               (forall ?tail_dlls:(DLst (Lst 'S))
+                 (forall ?v:'S
+                   (DL_L_S.in zero
+                              ?rv:N
+                              (DL_L_S.insertDPrList zero
+                                                    ?rv:N
+                                                    ?v:'S
+                                                    (dlst ?lh:Location
+                                                          ?lsts:(Lst 'S)
+                                                          ?tail_dlls:(DLst (Lst 'S))))
+                              (DL_L_S.insertDPrList zero
+                                                    ?rv:N
+                                                    ?v:'S
+                                                    (dlst ?lh:Location
+                                                          ?lsts:(Lst 'S)
+                                                          ?tail_dlls:(DLst (Lst 'S))))
+                              ?v:'S))))))
+
+New symbol DL_L_S.available_key declared.
+
+The sentence 
+(forall ?rv:N
+  (forall ?htl:Location
+    (forall ?htl0:Location
+      (forall ?bucket:N
+        (iff (DL_L_S.available_key ?bucket:N
+                                   ?rv:N
+                                   (dempty ?htl0:Location)
+                                   (dempty ?htl:Location))
+             false)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?tail_dlls:(DLst (Lst 'S))
+      (forall ?o_dlls:(DLst (Lst 'S))
+        (iff (DL_L_S.available_key zero
+                                   zero
+                                   (dlst ?lh:Location
+                                         ?lsts:(Lst 'S)
+                                         ?tail_dlls:(DLst (Lst 'S)))
+                                   ?o_dlls:(DLst (Lst 'S)))
+             (Location.alive ?lh:Location))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?o_dlls:(DLst (Lst 'S))
+          (if (Location.alive ?lh:Location)
+              (iff (DL_L_S.available_key zero
+                                         (S ?rv:N)
+                                         (dlst ?lh:Location
+                                               ?lsts:(Lst 'S)
+                                               ?tail_dlls:(DLst (Lst 'S)))
+                                         ?o_dlls:(DLst (Lst 'S)))
+                   true)))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?o_dlls:(DLst (Lst 'S))
+          (if (not (Location.alive ?lh:Location))
+              (iff (DL_L_S.available_key zero
+                                         (S ?rv:N)
+                                         (dlst ?lh:Location
+                                               ?lsts:(Lst 'S)
+                                               ?tail_dlls:(DLst (Lst 'S)))
+                                         ?o_dlls:(DLst (Lst 'S)))
+                   (DL_L_S.available_key zero
+                                         ?rv:N
+                                         ?tail_dlls:(DLst (Lst 'S))
+                                         ?o_dlls:(DLst (Lst 'S))))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?bucket:N
+          (forall ?o_dlls:(DLst (Lst 'S))
+            (iff (DL_L_S.available_key (S ?bucket:N)
+                                       ?rv:N
+                                       (dlst ?lh:Location
+                                             ?lsts:(Lst 'S)
+                                             ?tail_dlls:(DLst (Lst 'S)))
+                                       ?o_dlls:(DLst (Lst 'S)))
+                 (DL_L_S.available_key ?bucket:N
+                                       ?rv:N
+                                       ?tail_dlls:(DLst (Lst 'S))
+                                       ?o_dlls:(DLst (Lst 'S))))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?rv:N
+  (forall ?htl:Location
+    (forall ?olh:Location
+      (forall ?olsts:(Lst 'S)
+        (forall ?otail_dlls:(DLst (Lst 'S))
+          (forall ?bucket:N
+            (iff (DL_L_S.available_key ?bucket:N
+                                       ?rv:N
+                                       (dempty ?htl:Location)
+                                       (dlst ?olh:Location
+                                             ?olsts:(Lst 'S)
+                                             ?otail_dlls:(DLst (Lst 'S))))
+                 (DL_L_S.available_key ?bucket:N
+                                       ?rv:N
+                                       (dlst ?olh:Location
+                                             ?olsts:(Lst 'S)
+                                             ?otail_dlls:(DLst (Lst 'S)))
+                                       (dlst ?olh:Location
+                                             ?olsts:(Lst 'S)
+                                             ?otail_dlls:(DLst (Lst 'S)))))))))))
+has been added to the assumption base.
+
+New symbol DL_L_S.same_locs declared.
+
+The sentence 
+(forall ?dlls1:(DLst (Lst 'S))
+  (forall ?dlls2:(DLst (Lst 'S))
+    (iff (DL_L_S.same_locs ?dlls1:(DLst (Lst 'S))
+                           ?dlls2:(DLst (Lst 'S)))
+         (= (DL_L_S.dlls_locs ?dlls1:(DLst (Lst 'S)))
+            (DL_L_S.dlls_locs ?dlls2:(DLst (Lst 'S)))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.locs_eq_cases defined.
+
+Theorem: (forall ?dlls1:(DLst (Lst 'S))
+           (forall ?dlls2:(DLst (Lst 'S))
+             (if (DL_L_S.same_locs ?dlls1:(DLst (Lst 'S))
+                                   ?dlls2:(DLst (Lst 'S)))
+                 (or (exists ?htl:Location
+                       (exists ?htl0:Location
+                         (and (= ?dlls1:(DLst (Lst 'S))
+                                 (dempty ?htl:Location))
+                              (= ?dlls2:(DLst (Lst 'S))
+                                 (dempty ?htl0:Location)))))
+                     (exists ?lh:Location
+                       (exists ?lsts1:(Lst 'S)
+                         (exists ?tail_dlls:(DLst (Lst 'S))
+                           (exists ?lsts2:(Lst 'S)
+                             (exists ?tail_dlls2:(DLst (Lst 'S))
+                               (and (= ?dlls1:(DLst (Lst 'S))
+                                       (dlst ?lh:Location
+                                             ?lsts1:(Lst 'S)
+                                             ?tail_dlls:(DLst (Lst 'S))))
+                                    (and (= ?dlls2:(DLst (Lst 'S))
+                                            (dlst ?lh:Location
+                                                  ?lsts2:(Lst 'S)
+                                                  ?tail_dlls2:(DLst (Lst 'S))))
+                                         (DL_L_S.same_locs ?tail_dlls:(DLst (Lst 'S))
+                                                           ?tail_dlls2:(DLst (Lst 'S))))))))))))))
+
+Procedure DL_L_S.ak-inv defined.
+
+Procedure DL_L_S.ak-dlst defined.
+
+Method DL_L_S.ak-close defined.
+
+Sentence DL_L_S.akc-empty-empty defined.
+
+Sentence DL_L_S.akc-zero-zero defined.
+
+Sentence DL_L_S.akc-alive defined.
+
+Sentence DL_L_S.akc-dead defined.
+
+Sentence DL_L_S.akc-step defined.
+
+Sentence DL_L_S.akc-wrap defined.
+
+Sentence DL_L_S.available_key_locs_inv_all defined.
+
+Theorem: (forall ?B:N
+           (forall ?R:N
+             (forall ?dlls1:(DLst (Lst 'S))
+               (forall ?dlls2:(DLst (Lst 'S))
+                 (if (DL_L_S.same_locs ?dlls1:(DLst (Lst 'S))
+                                       ?dlls2:(DLst (Lst 'S)))
+                     (forall ?o_dlls1:(DLst (Lst 'S))
+                       (forall ?o_dlls2:(DLst (Lst 'S))
+                         (if (DL_L_S.same_locs ?o_dlls1:(DLst (Lst 'S))
+                                               ?o_dlls2:(DLst (Lst 'S)))
+                             (iff (DL_L_S.available_key ?B:N
+                                                        ?R:N
+                                                        ?dlls1:(DLst (Lst 'S))
+                                                        ?o_dlls1:(DLst (Lst 'S)))
+                                  (DL_L_S.available_key ?B:N
+                                                        ?R:N
+                                                        ?dlls2:(DLst (Lst 'S))
+                                                        ?o_dlls2:(DLst (Lst 'S))))))))))))
+
+Sentence DL_L_S.available_key_dlls_locs_inv defined.
+
+Theorem: (forall ?dlls1:(DLst (Lst 'S))
+           (forall ?dlls2:(DLst (Lst 'S))
+             (if (= (DL_L_S.dlls_locs ?dlls1:(DLst (Lst 'S)))
+                    (DL_L_S.dlls_locs ?dlls2:(DLst (Lst 'S))))
+                 (forall ?o_dlls1:(DLst (Lst 'S))
+                   (forall ?o_dlls2:(DLst (Lst 'S))
+                     (if (= (DL_L_S.dlls_locs ?o_dlls1:(DLst (Lst 'S)))
+                            (DL_L_S.dlls_locs ?o_dlls2:(DLst (Lst 'S))))
+                         (forall ?B:N
+                           (forall ?R:N
+                             (iff (DL_L_S.available_key ?B:N
+                                                        ?R:N
+                                                        ?dlls1:(DLst (Lst 'S))
+                                                        ?o_dlls1:(DLst (Lst 'S)))
+                                  (DL_L_S.available_key ?B:N
+                                                        ?R:N
+                                                        ?dlls2:(DLst (Lst 'S))
+                                                        ?o_dlls2:(DLst (Lst 'S))))))))))))
+
+Sentence DL_L_S.available_key_insert_invariant defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (forall ?B:N
+                   (forall ?R:N
+                     (iff (DL_L_S.available_key ?B:N
+                                                ?R:N
+                                                (DL_L_S.insertDPrList ?bucket:N
+                                                                      ?rv:N
+                                                                      ?v:'S
+                                                                      ?dlls:(DLst (Lst 'S)))
+                                                (DL_L_S.insertDPrList ?bucket:N
+                                                                      ?rv:N
+                                                                      ?v:'S
+                                                                      ?dlls:(DLst (Lst 'S))))
+                          (DL_L_S.available_key ?B:N
+                                                ?R:N
+                                                ?dlls:(DLst (Lst 'S))
+                                                ?dlls:(DLst (Lst 'S))))))))))
+
+New symbol DL_L_S.no_consecutive_failures declared.
+
+The sentence 
+(forall ?rv:N
+  (forall ?htl:Location
+    (forall ?o_dlls:(DLst (Lst 'S))
+      (iff (DL_L_S.no_consecutive_failures ?rv:N
+                                           (dempty ?htl:Location)
+                                           ?o_dlls:(DLst (Lst 'S)))
+           true))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?rv:N
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?o_dlls:(DLst (Lst 'S))
+          (iff (DL_L_S.no_consecutive_failures ?rv:N
+                                               (dlst ?lh:Location
+                                                     ?lsts:(Lst 'S)
+                                                     ?tail_dlls:(DLst (Lst 'S)))
+                                               ?o_dlls:(DLst (Lst 'S)))
+               (and (DL_L_S.available_key zero
+                                          ?rv:N
+                                          (dlst ?lh:Location
+                                                ?lsts:(Lst 'S)
+                                                ?tail_dlls:(DLst (Lst 'S)))
+                                          ?o_dlls:(DLst (Lst 'S)))
+                    (DL_L_S.no_consecutive_failures ?rv:N
+                                                    ?tail_dlls:(DLst (Lst 'S))
+                                                    ?o_dlls:(DLst (Lst 'S))))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.ncf_key_available_gen defined.
+
+Sentence DL_L_S.ak-empty-empty defined.
+
+Sentence DL_L_S.ak-zero-zero defined.
+
+Sentence DL_L_S.ak-alive defined.
+
+Sentence DL_L_S.ak-dead defined.
+
+Sentence DL_L_S.ak-step defined.
+
+Sentence DL_L_S.ak-wrap defined.
+
+Sentence DL_L_S.ncf-empty defined.
+
+Sentence DL_L_S.ncf-step defined.
+
+Sentence DL_L_S.ncf_from_all_windows defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?o_dlls:(DLst (Lst 'S))
+             (forall ?rv:N
+               (if (forall ?n:N
+                     (DL_L_S.available_key ?n:N
+                                           ?rv:N
+                                           ?dlls:(DLst (Lst 'S))
+                                           ?o_dlls:(DLst (Lst 'S))))
+                   (DL_L_S.no_consecutive_failures ?rv:N
+                                                   ?dlls:(DLst (Lst 'S))
+                                                   ?o_dlls:(DLst (Lst 'S)))))))
+
+Theorem: (forall ?n:N
+           (forall ?dlls:(DLst (Lst 'S))
+             (forall ?rv:N
+               (forall ?olh:Location
+                 (forall ?olsts:(Lst 'S)
+                   (forall ?otail_dlls:(DLst (Lst 'S))
+                     (if (and (DL_L_S.no_consecutive_failures ?rv:N
+                                                              ?dlls:(DLst (Lst 'S))
+                                                              (dlst ?olh:Location
+                                                                    ?olsts:(Lst 'S)
+                                                                    ?otail_dlls:(DLst (Lst 'S))))
+                              (DL_L_S.no_consecutive_failures ?rv:N
+                                                              (dlst ?olh:Location
+                                                                    ?olsts:(Lst 'S)
+                                                                    ?otail_dlls:(DLst (Lst 'S)))
+                                                              (dlst ?olh:Location
+                                                                    ?olsts:(Lst 'S)
+                                                                    ?otail_dlls:(DLst (Lst 'S)))))
+                         (DL_L_S.available_key ?n:N
+                                               ?rv:N
+                                               ?dlls:(DLst (Lst 'S))
+                                               (dlst ?olh:Location
+                                                     ?olsts:(Lst 'S)
+                                                     ?otail_dlls:(DLst (Lst 'S)))))))))))
+
+Sentence DL_L_S.ncf_insert_inv defined.
+
+Theorem: (forall ?n:N
+           (forall ?rv:N
+             (forall ?v0:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (iff (DL_L_S.no_consecutive_failures ?rv:N
+                                                      (DL_L_S.insertDPrList ?n:N
+                                                                            ?rv:N
+                                                                            ?v0:'S
+                                                                            ?dlls:(DLst (Lst 'S)))
+                                                      (DL_L_S.insertDPrList ?n:N
+                                                                            ?rv:N
+                                                                            ?v0:'S
+                                                                            ?dlls:(DLst (Lst 'S))))
+                      (DL_L_S.no_consecutive_failures ?rv:N
+                                                      ?dlls:(DLst (Lst 'S))
+                                                      ?dlls:(DLst (Lst 'S))))))))
+
+New symbol DL_L_S.dlls_end declared.
+
+The sentence 
+(forall ?htl:Location
+  (= (DL_L_S.dlls_end (dempty ?htl:Location))
+     ?htl:Location))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?tail_dlls:(DLst (Lst 'S))
+      (= (DL_L_S.dlls_end (dlst ?lh:Location
+                                ?lsts:(Lst 'S)
+                                ?tail_dlls:(DLst (Lst 'S))))
+         (DL_L_S.dlls_end ?tail_dlls:(DLst (Lst 'S)))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.initDPrList_end defined.
+
+Theorem: (forall ?ll:(Lst Location)
+           (forall ?f:(Function.fn 'S N)
+             (forall ?htl:Location
+               (= (DL_L_S.dlls_end (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                       ?htl:Location
+                                                       ?ll:(Lst Location)))
+                  ?htl:Location))))
+
+Sentence DL_L_S.insertNAt_preserves_end defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?bucket:N
+             (forall ?n:N
+               (forall ?v:'S
+                 (= (DL_L_S.dlls_end (DL_L_S.insertNAt ?bucket:N
+                                                       ?n:N
+                                                       ?v:'S
+                                                       ?dlls:(DLst (Lst 'S))))
+                    (DL_L_S.dlls_end ?dlls:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.insertDPrList_preserves_end defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (= (DL_L_S.dlls_end (DL_L_S.insertDPrList ?bucket:N
+                                                           ?rv:N
+                                                           ?v:'S
+                                                           ?dlls:(DLst (Lst 'S))))
+                    (DL_L_S.dlls_end ?dlls:(DLst (Lst 'S))))))))
+
+New symbol DL_L_S.values declared.
+
+Term DL_L_S.null defined.
+
+Symbol DL_L_S.insert defined.
+
+Symbol DL_L_S.\/ defined.
+
+The sentence 
+(forall ?htl:Location
+  (if (not (Location.alive ?htl:Location))
+      (= (DL_L_S.values (dempty ?htl:Location))
+         NONE:(Option (Set.Set 'S)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?htl:Location
+  (if (Location.alive ?htl:Location)
+      (= (DL_L_S.values (dempty ?htl:Location))
+         (SOME Set.null:(Set.Set 'S)))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?tail_dlls:(DLst (Lst 'S))
+      (if (not (Location.alive ?lh:Location))
+          (= (DL_L_S.values (dlst ?lh:Location
+                                  ?lsts:(Lst 'S)
+                                  ?tail_dlls:(DLst (Lst 'S))))
+             (DL_L_S.values ?tail_dlls:(DLst (Lst 'S))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?sets:(Set.Set 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (if (and (Location.alive ?lh:Location)
+                 (= (DL_L_S.values ?tail_dlls:(DLst (Lst 'S)))
+                    (SOME ?sets:(Set.Set 'S))))
+            (= (DL_L_S.values (dlst ?lh:Location
+                                    ?lsts:(Lst 'S)
+                                    ?tail_dlls:(DLst (Lst 'S))))
+               (SOME (Set.union (Lst.l2s ?lsts:(Lst 'S))
+                                ?sets:(Set.Set 'S)))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?lsts:(Lst 'S)
+    (forall ?tail_dlls:(DLst (Lst 'S))
+      (if (and (Location.alive ?lh:Location)
+               (= (DL_L_S.values ?tail_dlls:(DLst (Lst 'S)))
+                  NONE:(Option (Set.Set 'S))))
+          (= (DL_L_S.values (dlst ?lh:Location
+                                  ?lsts:(Lst 'S)
+                                  ?tail_dlls:(DLst (Lst 'S))))
+             NONE:(Option (Set.Set 'S)))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.values_end_dead defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (if (not (Location.alive (DL_L_S.dlls_end ?dlls:(DLst (Lst 'S)))))
+               (= (DL_L_S.values ?dlls:(DLst (Lst 'S)))
+                  NONE:(Option (Set.Set 'S)))))
+
+Sentence DL_L_S.values_end_alive defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (if (Location.alive (DL_L_S.dlls_end ?dlls:(DLst (Lst 'S))))
+               (exists ?sets:(Set.Set 'S)
+                 (= (DL_L_S.values ?dlls:(DLst (Lst 'S)))
+                    (SOME ?sets:(Set.Set 'S))))))
+
+Sentence DL_L_S.values_init defined.
+
+Theorem: (forall ?ll:(Lst Location)
+           (forall ?f:(Function.fn 'S N)
+             (forall ?htl:Location
+               (if (Location.alive ?htl:Location)
+                   (= (DL_L_S.values (DL_L_S.initDPrList ?f:(Function.fn 'S N)
+                                                         ?htl:Location
+                                                         ?ll:(Lst Location)))
+                      (SOME Set.null:(Set.Set 'S)))))))
+
+Term DL_L_S.pos defined.
+
+Term DL_L_S.cnt defined.
+
+Term DL_L_S.setA defined.
+
+Term DL_L_S.setT defined.
+
+Sentence DL_L_S.union_insert_right defined.
+
+Theorem: (forall ?setA:(Set.Set 'S)
+           (forall ?setT:(Set.Set 'S)
+             (forall ?v:'S
+               (= (Set.union ?setA:(Set.Set 'S)
+                             (Set.insert ?v:'S
+                                         ?setT:(Set.Set 'S)))
+                  (Set.insert ?v:'S
+                              (Set.union ?setA:(Set.Set 'S)
+                                         ?setT:(Set.Set 'S)))))))
+
+Sentence DL_L_S.insert_idem defined.
+
+Theorem: (forall ?v:'S
+           (forall ?setT:(Set.Set 'S)
+             (= (Set.insert ?v:'S
+                            (Set.insert ?v:'S
+                                        ?setT:(Set.Set 'S)))
+                (Set.insert ?v:'S
+                            ?setT:(Set.Set 'S)))))
+
+New symbol DL_L_S.hits declared.
+
+The sentence 
+(forall ?dlls:(DLst (Lst 'S))
+  (forall ?bucket:N
+    (iff (DL_L_S.hits ?bucket:N
+                      zero
+                      ?dlls:(DLst (Lst 'S)))
+         false)))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?htl:Location
+    (forall ?bucket:N
+      (iff (DL_L_S.hits ?bucket:N
+                        (S ?n:N)
+                        (dempty ?htl:Location))
+           false))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (iff (DL_L_S.hits zero
+                          (S ?n:N)
+                          (dlst ?lh:Location
+                                ?lsts:(Lst 'S)
+                                ?tail_dlls:(DLst (Lst 'S))))
+             (or (Location.alive ?lh:Location)
+                 (DL_L_S.hits zero
+                              ?n:N
+                              ?tail_dlls:(DLst (Lst 'S)))))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?n:N
+  (forall ?lh:Location
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (forall ?bucket:N
+          (iff (DL_L_S.hits (S ?bucket:N)
+                            (S ?n:N)
+                            (dlst ?lh:Location
+                                  ?lsts:(Lst 'S)
+                                  ?tail_dlls:(DLst (Lst 'S))))
+               (DL_L_S.hits ?bucket:N
+                            (S ?n:N)
+                            ?tail_dlls:(DLst (Lst 'S)))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.hits_step defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?n:N
+             (if (DL_L_S.hits zero
+                              ?n:N
+                              ?dlls:(DLst (Lst 'S)))
+                 (DL_L_S.hits zero
+                              (S ?n:N)
+                              ?dlls:(DLst (Lst 'S))))))
+
+Sentence DL_L_S.hits_countWraps defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?n:N
+             (forall ?o_dlls:(DLst (Lst 'S))
+               (if (DL_L_S.hits zero
+                                (DL_L_S.countWraps zero
+                                                   ?n:N
+                                                   ?dlls:(DLst (Lst 'S)))
+                                ?o_dlls:(DLst (Lst 'S)))
+                   (DL_L_S.hits zero
+                                ?n:N
+                                ?o_dlls:(DLst (Lst 'S)))))))
+
+Sentence DL_L_S.values_alive_head defined.
+
+Theorem: (forall ?lh:Location
+           (forall ?lsts:(Lst 'S)
+             (forall ?tail_dlls:(DLst (Lst 'S))
+               (forall ?s0:(Set.Set 'S)
+                 (if (and (Location.alive ?lh:Location)
+                          (= (DL_L_S.values (dlst ?lh:Location
+                                                  ?lsts:(Lst 'S)
+                                                  ?tail_dlls:(DLst (Lst 'S))))
+                             (SOME ?s0:(Set.Set 'S))))
+                     (exists ?sets:(Set.Set 'S)
+                       (and (= (DL_L_S.values ?tail_dlls:(DLst (Lst 'S)))
+                               (SOME ?sets:(Set.Set 'S)))
+                            (= ?s0:(Set.Set 'S)
+                               (Set.union (Lst.l2s ?lsts:(Lst 'S))
+                                          ?sets:(Set.Set 'S))))))))))
+
+Term DL_L_S.bk1 defined.
+
+Term DL_L_S.bk2 defined.
+
+Term DL_L_S.Xd defined.
+
+Term DL_L_S.Yd defined.
+
+Sentence DL_L_S.values_insertNAt defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?bucket:N
+             (forall ?n:N
+               (forall ?v:'S
+                 (forall ?s0:(Set.Set 'S)
+                   (if (= (DL_L_S.values ?dlls:(DLst (Lst 'S)))
+                          (SOME ?s0:(Set.Set 'S)))
+                       (and (if (DL_L_S.hits ?bucket:N
+                                             ?n:N
+                                             ?dlls:(DLst (Lst 'S)))
+                                (= (DL_L_S.values (DL_L_S.insertNAt ?bucket:N
+                                                                    ?n:N
+                                                                    ?v:'S
+                                                                    ?dlls:(DLst (Lst 'S))))
+                                   (SOME (Set.insert ?v:'S
+                                                     ?s0:(Set.Set 'S)))))
+                            (if (not (DL_L_S.hits ?bucket:N
+                                                  ?n:N
+                                                  ?dlls:(DLst (Lst 'S))))
+                                (= (DL_L_S.values (DL_L_S.insertNAt ?bucket:N
+                                                                    ?n:N
+                                                                    ?v:'S
+                                                                    ?dlls:(DLst (Lst 'S))))
+                                   (SOME ?s0:(Set.Set 'S)))))))))))
+
+Sentence DL_L_S.hits_cons defined.
+
+Theorem: (forall ?lh:Location
+           (forall ?bk1:(Lst 'S)
+             (forall ?bk2:(Lst 'S)
+               (forall ?Xd:(DLst (Lst 'S))
+                 (forall ?Yd:(DLst (Lst 'S))
+                   (if (forall ?bucket:N
+                         (forall ?n:N
+                           (iff (DL_L_S.hits ?bucket:N
+                                             ?n:N
+                                             ?Xd:(DLst (Lst 'S)))
+                                (DL_L_S.hits ?bucket:N
+                                             ?n:N
+                                             ?Yd:(DLst (Lst 'S))))))
+                       (forall ?bucket:N
+                         (forall ?n:N
+                           (iff (DL_L_S.hits ?bucket:N
+                                             ?n:N
+                                             (dlst ?lh:Location
+                                                   ?bk1:(Lst 'S)
+                                                   ?Xd:(DLst (Lst 'S))))
+                                (DL_L_S.hits ?bucket:N
+                                             ?n:N
+                                             (dlst ?lh:Location
+                                                   ?bk2:(Lst 'S)
+                                                   ?Yd:(DLst (Lst 'S)))))))))))))
+
+Sentence DL_L_S.hits_insertNAt defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?bucket0:N
+             (forall ?cnt:N
+               (forall ?v:'S
+                 (forall ?bucket:N
+                   (forall ?n:N
+                     (iff (DL_L_S.hits ?bucket:N
+                                       ?n:N
+                                       (DL_L_S.insertNAt ?bucket0:N
+                                                         ?cnt:N
+                                                         ?v:'S
+                                                         ?dlls:(DLst (Lst 'S))))
+                          (DL_L_S.hits ?bucket:N
+                                       ?n:N
+                                       ?dlls:(DLst (Lst 'S))))))))))
+
+New symbol DL_L_S.drop declared.
+
+The sentence 
+(forall ?dlls:(DLst (Lst 'S))
+  (= (DL_L_S.drop zero
+                  ?dlls:(DLst (Lst 'S)))
+     ?dlls:(DLst (Lst 'S))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?htl:Location
+  (forall ?pos:N
+    (= (DL_L_S.drop (S ?pos:N)
+                    (dempty ?htl:Location))
+       (dempty ?htl:Location))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?lh:Location
+  (forall ?pos:N
+    (forall ?lsts:(Lst 'S)
+      (forall ?tail_dlls:(DLst (Lst 'S))
+        (= (DL_L_S.drop (S ?pos:N)
+                        (dlst ?lh:Location
+                              ?lsts:(Lst 'S)
+                              ?tail_dlls:(DLst (Lst 'S))))
+           (DL_L_S.drop ?pos:N
+                        ?tail_dlls:(DLst (Lst 'S))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.hits_drop defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?pos:N
+             (forall ?n:N
+               (iff (DL_L_S.hits ?pos:N
+                                 ?n:N
+                                 ?dlls:(DLst (Lst 'S)))
+                    (DL_L_S.hits zero
+                                 ?n:N
+                                 (DL_L_S.drop ?pos:N
+                                              ?dlls:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.countWraps_drop defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?pos:N
+             (forall ?n:N
+               (= (DL_L_S.countWraps ?pos:N
+                                     ?n:N
+                                     ?dlls:(DLst (Lst 'S)))
+                  (DL_L_S.countWraps zero
+                                     ?n:N
+                                     (DL_L_S.drop ?pos:N
+                                                  ?dlls:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.drop_dempty defined.
+
+Theorem: (forall ?pos:N
+           (forall ?htl:Location
+             (= (DL_L_S.drop ?pos:N
+                             (dempty ?htl:Location))
+                (dempty ?htl:Location))))
+
+Term DL_L_S.lh9 defined.
+
+Term DL_L_S.lsts9 defined.
+
+Term DL_L_S.tl9 defined.
+
+Sentence DL_L_S.drop_step defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?pos:N
+             (forall ?lh9:Location
+               (forall ?lsts9:(Lst 'S)
+                 (forall ?tl9:(DLst (Lst 'S))
+                   (if (= (DL_L_S.drop ?pos:N
+                                       ?dlls:(DLst (Lst 'S)))
+                          (dlst ?lh9:Location
+                                ?lsts9:(Lst 'S)
+                                ?tl9:(DLst (Lst 'S))))
+                       (= (DL_L_S.drop (S ?pos:N)
+                                       ?dlls:(DLst (Lst 'S)))
+                          ?tl9:(DLst (Lst 'S)))))))))
+
+Sentence DL_L_S.ak_hits_wrap defined.
+
+Theorem: (forall ?rv:N
+           (if (forall ?lh:Location
+                 (forall ?lsts:(Lst 'S)
+                   (forall ?tail_dlls:(DLst (Lst 'S))
+                     (forall ?o_dlls:(DLst (Lst 'S))
+                       (if (and (exists ?olh:Location
+                                  (exists ?olsts:(Lst 'S)
+                                    (exists ?otail_dlls:(DLst (Lst 'S))
+                                      (= ?o_dlls:(DLst (Lst 'S))
+                                         (dlst ?olh:Location
+                                               ?olsts:(Lst 'S)
+                                               ?otail_dlls:(DLst (Lst 'S)))))))
+                                (DL_L_S.available_key zero
+                                                      ?rv:N
+                                                      (dlst ?lh:Location
+                                                            ?lsts:(Lst 'S)
+                                                            ?tail_dlls:(DLst (Lst 'S)))
+                                                      ?o_dlls:(DLst (Lst 'S))))
+                           (or (DL_L_S.hits zero
+                                            (S ?rv:N)
+                                            (dlst ?lh:Location
+                                                  ?lsts:(Lst 'S)
+                                                  ?tail_dlls:(DLst (Lst 'S))))
+                               (DL_L_S.hits zero
+                                            (DL_L_S.countWraps zero
+                                                               (S ?rv:N)
+                                                               (dlst ?lh:Location
+                                                                     ?lsts:(Lst 'S)
+                                                                     ?tail_dlls:(DLst (Lst 'S))))
+                                            ?o_dlls:(DLst (Lst 'S)))))))))
+               (forall ?htl:Location
+                 (forall ?o_dlls:(DLst (Lst 'T))
+                   (if (and (exists ?olh:Location
+                              (exists ?olsts:(Lst 'T)
+                                (exists ?otail_dlls:(DLst (Lst 'T))
+                                  (= ?o_dlls:(DLst (Lst 'T))
+                                     (dlst ?olh:Location
+                                           ?olsts:(Lst 'T)
+                                           ?otail_dlls:(DLst (Lst 'T)))))))
+                            (DL_L_S.available_key zero
+                                                  ?rv:N
+                                                  (dempty ?htl:Location)
+                                                  ?o_dlls:(DLst (Lst 'T))))
+                       (or (DL_L_S.hits zero
+                                        (S ?rv:N)
+                                        (dempty ?htl:Location))
+                           (DL_L_S.hits zero
+                                        (DL_L_S.countWraps zero
+                                                           (S ?rv:N)
+                                                           (dempty ?htl:Location))
+                                        ?o_dlls:(DLst (Lst 'T)))))))))
+
+Sentence DL_L_S.ak_hits defined.
+
+Theorem: (forall ?rv:N
+           (forall ?dlls:(DLst (Lst 'S))
+             (forall ?o_dlls:(DLst (Lst 'S))
+               (if (and (exists ?olh:Location
+                          (exists ?olsts:(Lst 'S)
+                            (exists ?otail_dlls:(DLst (Lst 'S))
+                              (= ?o_dlls:(DLst (Lst 'S))
+                                 (dlst ?olh:Location
+                                       ?olsts:(Lst 'S)
+                                       ?otail_dlls:(DLst (Lst 'S)))))))
+                        (DL_L_S.available_key zero
+                                              ?rv:N
+                                              ?dlls:(DLst (Lst 'S))
+                                              ?o_dlls:(DLst (Lst 'S))))
+                   (or (DL_L_S.hits zero
+                                    (S ?rv:N)
+                                    ?dlls:(DLst (Lst 'S)))
+                       (DL_L_S.hits zero
+                                    (DL_L_S.countWraps zero
+                                                       (S ?rv:N)
+                                                       ?dlls:(DLst (Lst 'S)))
+                                    ?o_dlls:(DLst (Lst 'S))))))))
+
+Method DL_L_S.ak_hits_gen_wrap defined.
+
+Sentence DL_L_S.ak_hits_gen defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?pos:N
+             (forall ?rv:N
+               (forall ?o_dlls:(DLst (Lst 'S))
+                 (if (and (exists ?olh:Location
+                            (exists ?olsts:(Lst 'S)
+                              (exists ?otail_dlls:(DLst (Lst 'S))
+                                (= ?o_dlls:(DLst (Lst 'S))
+                                   (dlst ?olh:Location
+                                         ?olsts:(Lst 'S)
+                                         ?otail_dlls:(DLst (Lst 'S)))))))
+                          (DL_L_S.available_key ?bucket:N
+                                                ?rv:N
+                                                (DL_L_S.drop ?pos:N
+                                                             ?o_dlls:(DLst (Lst 'S)))
+                                                ?o_dlls:(DLst (Lst 'S))))
+                     (or (DL_L_S.hits (DL_L_S.bucketIndex ?bucket:N
+                                                          (DL_L_S.drop ?pos:N
+                                                                       ?o_dlls:(DLst (Lst 'S)))
+                                                          ?o_dlls:(DLst (Lst 'S))
+                                                          ?pos:N)
+                                      (S ?rv:N)
+                                      ?o_dlls:(DLst (Lst 'S)))
+                         (DL_L_S.hits zero
+                                      (DL_L_S.countWraps (DL_L_S.bucketIndex ?bucket:N
+                                                                             (DL_L_S.drop ?pos:N
+                                                                                          ?o_dlls:(DLst (Lst 'S)))
+                                                                             ?o_dlls:(DLst (Lst 'S))
+                                                                             ?pos:N)
+                                                         (S ?rv:N)
+                                                         ?o_dlls:(DLst (Lst 'S)))
+                                      ?o_dlls:(DLst (Lst 'S)))))))))
+
+Sentence DL_L_S.ak_hits_insert defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?dlls:(DLst (Lst 'S))
+               (if (DL_L_S.available_key ?bucket:N
+                                         ?rv:N
+                                         ?dlls:(DLst (Lst 'S))
+                                         ?dlls:(DLst (Lst 'S)))
+                   (or (DL_L_S.hits (DL_L_S.bucketIndex ?bucket:N
+                                                        ?dlls:(DLst (Lst 'S))
+                                                        ?dlls:(DLst (Lst 'S))
+                                                        zero)
+                                    (S ?rv:N)
+                                    ?dlls:(DLst (Lst 'S)))
+                       (DL_L_S.hits zero
+                                    (DL_L_S.countWraps (DL_L_S.bucketIndex ?bucket:N
+                                                                           ?dlls:(DLst (Lst 'S))
+                                                                           ?dlls:(DLst (Lst 'S))
+                                                                           zero)
+                                                       (S ?rv:N)
+                                                       ?dlls:(DLst (Lst 'S)))
+                                    ?dlls:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.values_after_insert defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v0:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (forall ?s0:(Set.Set 'S)
+                   (if (and (DL_L_S.available_key ?bucket:N
+                                                  ?rv:N
+                                                  ?dlls:(DLst (Lst 'S))
+                                                  ?dlls:(DLst (Lst 'S)))
+                            (= (DL_L_S.values ?dlls:(DLst (Lst 'S)))
+                               (SOME ?s0:(Set.Set 'S))))
+                       (= (DL_L_S.values (DL_L_S.insertDPrList ?bucket:N
+                                                               ?rv:N
+                                                               ?v0:'S
+                                                               ?dlls:(DLst (Lst 'S))))
+                          (SOME (Set.insert ?v0:'S
+                                            ?s0:(Set.Set 'S))))))))))
+
+New symbol DL_L_S.same_mem declared.
+
+The sentence 
+(forall ?v:'S
+  (forall ?htl:Location
+    (forall ?htl0:Location
+      (iff (DL_L_S.same_mem ?v:'S
+                            (dempty ?htl:Location)
+                            (dempty ?htl0:Location))
+           true))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:'S
+  (forall ?htl:Location
+    (forall ?lh2:Location
+      (forall ?lsts2:(Lst 'S)
+        (forall ?tail_dlls2:(DLst (Lst 'S))
+          (iff (DL_L_S.same_mem ?v:'S
+                                (dempty ?htl:Location)
+                                (dlst ?lh2:Location
+                                      ?lsts2:(Lst 'S)
+                                      ?tail_dlls2:(DLst (Lst 'S))))
+               false))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:'S
+  (forall ?lh:Location
+    (forall ?htl0:Location
+      (forall ?lsts:(Lst 'S)
+        (forall ?tail_dlls:(DLst (Lst 'S))
+          (iff (DL_L_S.same_mem ?v:'S
+                                (dlst ?lh:Location
+                                      ?lsts:(Lst 'S)
+                                      ?tail_dlls:(DLst (Lst 'S)))
+                                (dempty ?htl0:Location))
+               false))))))
+has been added to the assumption base.
+
+The sentence 
+(forall ?v:'S
+  (forall ?lh:Location
+    (forall ?lh2:Location
+      (forall ?lsts:(Lst 'S)
+        (forall ?lsts2:(Lst 'S)
+          (forall ?tail_dlls:(DLst (Lst 'S))
+            (forall ?tail_dlls2:(DLst (Lst 'S))
+              (iff (DL_L_S.same_mem ?v:'S
+                                    (dlst ?lh:Location
+                                          ?lsts:(Lst 'S)
+                                          ?tail_dlls:(DLst (Lst 'S)))
+                                    (dlst ?lh2:Location
+                                          ?lsts2:(Lst 'S)
+                                          ?tail_dlls2:(DLst (Lst 'S))))
+                   (and (iff (Lst.in ?v:'S
+                                     ?lsts:(Lst 'S))
+                             (Lst.in ?v:'S
+                                     ?lsts2:(Lst 'S)))
+                        (DL_L_S.same_mem ?v:'S
+                                         ?tail_dlls:(DLst (Lst 'S))
+                                         ?tail_dlls2:(DLst (Lst 'S))))))))))))
+has been added to the assumption base.
+
+Sentence DL_L_S.same_mem_refl defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?v:'S
+             (DL_L_S.same_mem ?v:'S
+                              ?dlls:(DLst (Lst 'S))
+                              ?dlls:(DLst (Lst 'S)))))
+
+Sentence DL_L_S.mem_cases defined.
+
+Theorem: (forall ?v:'S
+           (forall ?dlls1:(DLst (Lst 'S))
+             (forall ?dlls2:(DLst (Lst 'S))
+               (if (DL_L_S.same_mem ?v:'S
+                                    ?dlls1:(DLst (Lst 'S))
+                                    ?dlls2:(DLst (Lst 'S)))
+                   (or (exists ?htl:Location
+                         (exists ?htl0:Location
+                           (and (= ?dlls1:(DLst (Lst 'S))
+                                   (dempty ?htl:Location))
+                                (= ?dlls2:(DLst (Lst 'S))
+                                   (dempty ?htl0:Location)))))
+                       (exists ?lh:Location
+                         (exists ?lsts1:(Lst 'S)
+                           (exists ?tail_dlls:(DLst (Lst 'S))
+                             (exists ?lh2:Location
+                               (exists ?lsts2:(Lst 'S)
+                                 (exists ?tail_dlls2:(DLst (Lst 'S))
+                                   (and (= ?dlls1:(DLst (Lst 'S))
+                                           (dlst ?lh:Location
+                                                 ?lsts1:(Lst 'S)
+                                                 ?tail_dlls:(DLst (Lst 'S))))
+                                        (and (= ?dlls2:(DLst (Lst 'S))
+                                                (dlst ?lh2:Location
+                                                      ?lsts2:(Lst 'S)
+                                                      ?tail_dlls2:(DLst (Lst 'S))))
+                                             (and (iff (Lst.in ?v:'S
+                                                               ?lsts1:(Lst 'S))
+                                                       (Lst.in ?v:'S
+                                                               ?lsts2:(Lst 'S)))
+                                                  (DL_L_S.same_mem ?v:'S
+                                                                   ?tail_dlls:(DLst (Lst 'S))
+                                                                   ?tail_dlls2:(DLst (Lst 'S)))))))))))))))))
+
+Procedure DL_L_S.mi-inv defined.
+
+Procedure DL_L_S.mi-dlst defined.
+
+Method DL_L_S.mi-close defined.
+
+Sentence DL_L_S.in_mem_inv_all defined.
+
+Theorem: (forall ?B:N
+           (forall ?R:N
+             (forall ?v:'S
+               (forall ?dlls1:(DLst (Lst 'S))
+                 (forall ?dlls2:(DLst (Lst 'S))
+                   (if (DL_L_S.same_mem ?v:'S
+                                        ?dlls1:(DLst (Lst 'S))
+                                        ?dlls2:(DLst (Lst 'S)))
+                       (forall ?o_dlls1:(DLst (Lst 'S))
+                         (forall ?o_dlls2:(DLst (Lst 'S))
+                           (if (DL_L_S.same_mem ?v:'S
+                                                ?o_dlls1:(DLst (Lst 'S))
+                                                ?o_dlls2:(DLst (Lst 'S)))
+                               (iff (DL_L_S.in ?B:N
+                                               ?R:N
+                                               ?dlls1:(DLst (Lst 'S))
+                                               ?o_dlls1:(DLst (Lst 'S))
+                                               ?v:'S)
+                                    (DL_L_S.in ?B:N
+                                               ?R:N
+                                               ?dlls2:(DLst (Lst 'S))
+                                               ?o_dlls2:(DLst (Lst 'S))
+                                               ?v:'S)))))))))))
+
+Sentence DL_L_S.same_mem_trans defined.
+
+Theorem: (forall ?dlls1:(DLst (Lst 'S))
+           (forall ?v:'S
+             (forall ?dlls2:(DLst (Lst 'S))
+               (forall ?o_dlls1:(DLst (Lst 'S))
+                 (if (and (DL_L_S.same_mem ?v:'S
+                                           ?dlls1:(DLst (Lst 'S))
+                                           ?dlls2:(DLst (Lst 'S)))
+                          (DL_L_S.same_mem ?v:'S
+                                           ?dlls2:(DLst (Lst 'S))
+                                           ?o_dlls1:(DLst (Lst 'S))))
+                     (DL_L_S.same_mem ?v:'S
+                                      ?dlls1:(DLst (Lst 'S))
+                                      ?o_dlls1:(DLst (Lst 'S))))))))
+
+Sentence DL_L_S.same_mem_insertNAt defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?bucket:N
+             (forall ?n:N
+               (forall ?v:'S
+                 (forall ?v0:'S
+                   (if (not (= ?v:'S ?v0:'S))
+                       (DL_L_S.same_mem ?v:'S
+                                        (DL_L_S.insertNAt ?bucket:N
+                                                          ?n:N
+                                                          ?v0:'S
+                                                          ?dlls:(DLst (Lst 'S)))
+                                        ?dlls:(DLst (Lst 'S)))))))))
+
+Sentence DL_L_S.same_mem_insertDPrList defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?v0:'S
+                 (forall ?dlls:(DLst (Lst 'S))
+                   (if (not (= ?v:'S ?v0:'S))
+                       (DL_L_S.same_mem ?v:'S
+                                        (DL_L_S.insertDPrList ?bucket:N
+                                                              ?rv:N
+                                                              ?v0:'S
+                                                              ?dlls:(DLst (Lst 'S)))
+                                        ?dlls:(DLst (Lst 'S)))))))))
+
+Sentence DL_L_S.in_after_insert_other defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?bucket0:N
+             (forall ?rv:N
+               (forall ?v:'S
+                 (forall ?v0:'S
+                   (forall ?dlls:(DLst (Lst 'S))
+                     (if (not (= ?v:'S ?v0:'S))
+                         (iff (DL_L_S.in ?bucket0:N
+                                         ?rv:N
+                                         (DL_L_S.insertDPrList ?bucket:N
+                                                               ?rv:N
+                                                               ?v0:'S
+                                                               ?dlls:(DLst (Lst 'S)))
+                                         (DL_L_S.insertDPrList ?bucket:N
+                                                               ?rv:N
+                                                               ?v0:'S
+                                                               ?dlls:(DLst (Lst 'S)))
+                                         ?v:'S)
+                              (DL_L_S.in ?bucket0:N
+                                         ?rv:N
+                                         ?dlls:(DLst (Lst 'S))
+                                         ?dlls:(DLst (Lst 'S))
+                                         ?v:'S)))))))))
+
+Procedure DL_L_S.bi-inv defined.
+
+Procedure DL_L_S.bi-dlst defined.
+
+Method DL_L_S.bi-close defined.
+
+Sentence DL_L_S.bucketIndex_locs_inv_all defined.
+
+Theorem: (forall ?B:N
+           (forall ?dlls1:(DLst (Lst 'S))
+             (forall ?dlls2:(DLst (Lst 'S))
+               (if (DL_L_S.same_locs ?dlls1:(DLst (Lst 'S))
+                                     ?dlls2:(DLst (Lst 'S)))
+                   (forall ?o_dlls1:(DLst (Lst 'S))
+                     (forall ?o_dlls2:(DLst (Lst 'S))
+                       (if (DL_L_S.same_locs ?o_dlls1:(DLst (Lst 'S))
+                                             ?o_dlls2:(DLst (Lst 'S)))
+                           (forall ?n:N
+                             (= (DL_L_S.bucketIndex ?B:N
+                                                    ?dlls1:(DLst (Lst 'S))
+                                                    ?o_dlls1:(DLst (Lst 'S))
+                                                    ?n:N)
+                                (DL_L_S.bucketIndex ?B:N
+                                                    ?dlls2:(DLst (Lst 'S))
+                                                    ?o_dlls2:(DLst (Lst 'S))
+                                                    ?n:N))))))))))
+
+Sentence DL_L_S.bucketIndex_insert_invariant defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (forall ?bucket0:N
+                   (= (DL_L_S.bucketIndex ?bucket0:N
+                                          (DL_L_S.insertDPrList ?bucket:N
+                                                                ?rv:N
+                                                                ?v:'S
+                                                                ?dlls:(DLst (Lst 'S)))
+                                          (DL_L_S.insertDPrList ?bucket:N
+                                                                ?rv:N
+                                                                ?v:'S
+                                                                ?dlls:(DLst (Lst 'S)))
+                                          zero)
+                      (DL_L_S.bucketIndex ?bucket0:N
+                                          ?dlls:(DLst (Lst 'S))
+                                          ?dlls:(DLst (Lst 'S))
+                                          zero)))))))
+
+Sentence DL_L_S.head_after_insertNAt defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?pos:N
+             (forall ?cnt:N
+               (forall ?v:'S
+                 (if (exists ?lh:Location
+                       (exists ?lsts:(Lst 'S)
+                         (exists ?tail_dlls:(DLst (Lst 'S))
+                           (= (DL_L_S.drop ?pos:N
+                                           ?dlls:(DLst (Lst 'S)))
+                              (dlst ?lh:Location
+                                    ?lsts:(Lst 'S)
+                                    ?tail_dlls:(DLst (Lst 'S)))))))
+                     (exists ?lh:Location
+                       (exists ?lsts:(Lst 'S)
+                         (exists ?tail_dlls:(DLst (Lst 'S))
+                           (and (= (DL_L_S.drop ?pos:N
+                                                (DL_L_S.insertNAt ?pos:N
+                                                                  (S ?cnt:N)
+                                                                  ?v:'S
+                                                                  ?dlls:(DLst (Lst 'S))))
+                                   (dlst ?lh:Location
+                                         ?lsts:(Lst 'S)
+                                         ?tail_dlls:(DLst (Lst 'S))))
+                                (Lst.in ?v:'S
+                                        ?lsts:(Lst 'S)))))))))))
+
+Sentence DL_L_S.head_kept_insertNAt defined.
+
+Theorem: (forall ?dlls:(DLst (Lst 'S))
+           (forall ?pos:N
+             (forall ?bucket:N
+               (forall ?cnt:N
+                 (forall ?v:'S
+                   (forall ?v0:'S
+                     (if (exists ?lh:Location
+                           (exists ?lsts:(Lst 'S)
+                             (exists ?tail_dlls:(DLst (Lst 'S))
+                               (and (= (DL_L_S.drop ?pos:N
+                                                    ?dlls:(DLst (Lst 'S)))
+                                       (dlst ?lh:Location
+                                             ?lsts:(Lst 'S)
+                                             ?tail_dlls:(DLst (Lst 'S))))
+                                    (Lst.in ?v:'S
+                                            ?lsts:(Lst 'S))))))
+                         (exists ?lh:Location
+                           (exists ?lsts:(Lst 'S)
+                             (exists ?tail_dlls:(DLst (Lst 'S))
+                               (and (= (DL_L_S.drop ?pos:N
+                                                    (DL_L_S.insertNAt ?bucket:N
+                                                                      ?cnt:N
+                                                                      ?v0:'S
+                                                                      ?dlls:(DLst (Lst 'S))))
+                                       (dlst ?lh:Location
+                                             ?lsts:(Lst 'S)
+                                             ?tail_dlls:(DLst (Lst 'S))))
+                                    (Lst.in ?v:'S
+                                            ?lsts:(Lst 'S)))))))))))))
+
+Method DL_L_S.in_walk_wrap defined.
+
+Sentence DL_L_S.in_walk defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?pos:N
+             (forall ?rv:N
+               (forall ?o_dlls:(DLst (Lst 'S))
+                 (forall ?v:'S
+                   (if (exists ?olh:Location
+                         (exists ?olsts:(Lst 'S)
+                           (exists ?otail_dlls:(DLst (Lst 'S))
+                             (= ?o_dlls:(DLst (Lst 'S))
+                                (dlst ?olh:Location
+                                      ?olsts:(Lst 'S)
+                                      ?otail_dlls:(DLst (Lst 'S)))))))
+                       (and (exists ?lh:Location
+                              (exists ?lsts:(Lst 'S)
+                                (exists ?tail_dlls:(DLst (Lst 'S))
+                                  (= (DL_L_S.drop (DL_L_S.bucketIndex ?bucket:N
+                                                                      (DL_L_S.drop ?pos:N
+                                                                                   ?o_dlls:(DLst (Lst 'S)))
+                                                                      ?o_dlls:(DLst (Lst 'S))
+                                                                      ?pos:N)
+                                                  ?o_dlls:(DLst (Lst 'S)))
+                                     (dlst ?lh:Location
+                                           ?lsts:(Lst 'S)
+                                           ?tail_dlls:(DLst (Lst 'S)))))))
+                            (if (exists ?lh:Location
+                                  (exists ?lsts:(Lst 'S)
+                                    (exists ?tail_dlls:(DLst (Lst 'S))
+                                      (and (= (DL_L_S.drop (DL_L_S.bucketIndex ?bucket:N
+                                                                               (DL_L_S.drop ?pos:N
+                                                                                            ?o_dlls:(DLst (Lst 'S)))
+                                                                               ?o_dlls:(DLst (Lst 'S))
+                                                                               ?pos:N)
+                                                           ?o_dlls:(DLst (Lst 'S)))
+                                              (dlst ?lh:Location
+                                                    ?lsts:(Lst 'S)
+                                                    ?tail_dlls:(DLst (Lst 'S))))
+                                           (Lst.in ?v:'S
+                                                   ?lsts:(Lst 'S))))))
+                                (DL_L_S.in ?bucket:N
+                                           ?rv:N
+                                           (DL_L_S.drop ?pos:N
+                                                        ?o_dlls:(DLst (Lst 'S)))
+                                           ?o_dlls:(DLst (Lst 'S))
+                                           ?v:'S)))))))))
+
+Sentence DL_L_S.in_after_insert_self defined.
+
+Theorem: (forall ?bucket:N
+           (forall ?rv:N
+             (forall ?v:'S
+               (forall ?dlls:(DLst (Lst 'S))
+                 (if (exists ?lh:Location
+                       (exists ?lsts:(Lst 'S)
+                         (exists ?tail_dlls:(DLst (Lst 'S))
+                           (= ?dlls:(DLst (Lst 'S))
+                              (dlst ?lh:Location
+                                    ?lsts:(Lst 'S)
+                                    ?tail_dlls:(DLst (Lst 'S)))))))
+                     (DL_L_S.in ?bucket:N
+                                ?rv:N
+                                (DL_L_S.insertDPrList ?bucket:N
+                                                      ?rv:N
+                                                      ?v:'S
+                                                      ?dlls:(DLst (Lst 'S)))
+                                (DL_L_S.insertDPrList ?bucket:N
+                                                      ?rv:N
+                                                      ?v:'S
+                                                      ?dlls:(DLst (Lst 'S)))
+                                ?v:'S))))))
+
+Module DL_L_S defined.
+
+OK.
+
+OK.
+
+Sentence NCFExamples.a1 defined.
+
+Sentence NCFExamples.a2 defined.
+
+Sentence NCFExamples.a3a defined.
+
+Sentence NCFExamples.a3b defined.
+
+Sentence NCFExamples.a4 defined.
+
+Sentence NCFExamples.a5 defined.
+
+Sentence NCFExamples.nc1 defined.
+
+Sentence NCFExamples.nc2 defined.
+
+Term NCFExamples.L defined.
+
+Term NCFExamples.U defined.
+
+Term NCFExamples.E defined.
+
+Term NCFExamples.aliveL defined.
+
+Sentence NCFExamples.deadU defined.
+
+Term NCFExamples.one defined.
+
+Term NCFExamples.two defined.
+
+Term NCFExamples.r2 defined.
+
+Term NCFExamples.r1 defined.
+
+Term NCFExamples.ring defined.
+
+Term NCFExamples.ex_ring_rv1_holds defined.
+
+Theorem: (DL_L_S.no_consecutive_failures (S zero)
+                                         (dlst Location.localhost
+                                               empty:(Lst 'S)
+                                               (dlst Location.unreachableHost
+                                                     empty:(Lst 'S)
+                                                     (dlst Location.localhost
+                                                           empty:(Lst 'S)
+                                                           (dempty Location.localhost))))
+                                         (dlst Location.localhost
+                                               empty:(Lst 'S)
+                                               (dlst Location.unreachableHost
+                                                     empty:(Lst 'S)
+                                                     (dlst Location.localhost
+                                                           empty:(Lst 'S)
+                                                           (dempty Location.localhost)))))
+
+Term NCFExamples.b2 defined.
+
+Term NCFExamples.b1 defined.
+
+Term NCFExamples.badring defined.
+
+Sentence NCFExamples.ex_badring_rv1_fails defined.
+
+Theorem: (not (DL_L_S.no_consecutive_failures (S zero)
+                                              (dlst Location.unreachableHost
+                                                    empty:(Lst 'S)
+                                                    (dlst Location.unreachableHost
+                                                          empty:(Lst 'S)
+                                                          (dlst Location.localhost
+                                                                empty:(Lst 'S)
+                                                                (dempty Location.localhost))))
+                                              (dlst Location.unreachableHost
+                                                    empty:(Lst 'S)
+                                                    (dlst Location.unreachableHost
+                                                          empty:(Lst 'S)
+                                                          (dlst Location.localhost
+                                                                empty:(Lst 'S)
+                                                                (dempty Location.localhost))))))
+
+Term NCFExamples.ex_badring_rv2_holds defined.
+
+Theorem: (DL_L_S.no_consecutive_failures (S (S zero))
+                                         (dlst Location.unreachableHost
+                                               empty:(Lst 'S)
+                                               (dlst Location.unreachableHost
+                                                     empty:(Lst 'S)
+                                                     (dlst Location.localhost
+                                                           empty:(Lst 'S)
+                                                           (dempty Location.localhost))))
+                                         (dlst Location.unreachableHost
+                                               empty:(Lst 'S)
+                                               (dlst Location.unreachableHost
+                                                     empty:(Lst 'S)
+                                                     (dlst Location.localhost
+                                                           empty:(Lst 'S)
+                                                           (dempty Location.localhost)))))
+
+Module NCFExamples defined.
+
+Ready...
+
+>
+Exiting Athena...
+

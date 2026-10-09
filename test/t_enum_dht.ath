@@ -1,0 +1,343 @@
+### t_enum_dht.ath (paper Section 3.4, exhaustive small cases)
+###
+### Checks the DHT definitions against an independent reference, on every
+### ring of alive (L) and dead (U) buckets, every replication value and every
+### key up to the bounds in mode.ath. The reference is written below as
+### ordinary Athena procedures on integers and lists (modular arithmetic over
+### the ring), not with the axioms. The groups are:
+###   1. available_key k rv: the window [k, k + rv] modulo the number of
+###      buckets has an alive bucket.
+###   2. no_consecutive_failures rv: every window of rv + 1 consecutive
+###      buckets has an alive bucket.
+###   3. bucketIndex k: k modulo the number of buckets.
+###   4. insertDPrList k rv k, in steps: the reduced index, the wrap count
+###      (not truncated), the write of [idx, n), the write of [0, w), and the
+###      composed equation. When rv + 1 > n some buckets receive the value
+###      twice, and the reference reproduces that exactly.
+###   5. query on a table with one insertion, table location alive or dead,
+###      in steps: initial buckets, representations, window of the queried
+###      key, membership of the key in its window, and the answer (NONE when
+###      the location is dead or the window has no alive bucket).
+###   6. query on a table with two insertions (collisions, and a key looked
+###      up after a different key was inserted).
+###   7. values on a table with one insertion: NONE when the location is dead,
+###      otherwise the values of the alive buckets. When every bucket that
+###      received the value is dead, the value is invisible and the result is
+###      the empty set.
+###
+### Each step is sent to Vampire with a short premise list. If the expected
+### sentence is proved, the step passes. If its negation is proved, the
+### definitions disagree with the reference: a MISMATCH, which fails the test.
+### If neither is proved within Mode.enum-time seconds per stage, the step is
+### UNDECIDED: reported, not failed, and the remaining steps of that case are
+### skipped. A step already in the assumption base is not sent again.
+
+load "common"
+
+module T_Enum_DHT {
+
+    define hf    := Function.identity:(Function.fn N N)
+    define eopts := [['max-time Mode.enum-time]]
+
+    #--- Meta-level helpers.
+    define (nat k) := check { (equal? k 0) => zero | else => (S (nat (minus k 1))) }
+    define (range a b) := check { (less? a b) => (add a (range (plus a 1) b)) | else => [] }
+    define (upto m) := (range 0 (plus m 1))
+    define (nth0 l i) := match l { (list-of h t) => check { (equal? i 0) => h | else => (nth0 t (minus i 1)) } }
+    define (modn a n) := check { (less? a n) => a | else => (modn (minus a n) n) }
+    define (mn a b) := check { (less? a b) => a | else => b }
+    define (mx a b) := check { (less? a b) => b | else => a }
+    define (any? f l) := match l { [] => false | (list-of h t) => check { (f h) => true | else => (any? f t) } }
+    define (all? f l) := match l { [] => true | (list-of h t) => check { (f h) => (all? f t) | else => false } }
+    define (each f l) := match l { [] => () | (list-of h t) => let {_ := (f h)} (each f t) }
+    define (member-int? x l) := (any? (lambda (y) (equal? x y)) l)
+    define (rings-of n) :=
+        check { (equal? n 0) => [[]]
+              | else => let {rs := (rings-of (minus n 1))}
+                          (join (map (lambda (r) (add true r)) rs) (map (lambda (r) (add false r)) rs)) }
+    define (rings-up-to m) := (foldr join [] (map rings-of (range 1 (plus m 1))))
+    define (str xs) := (foldr join "" (map (lambda (x) check { (string? x) => x | else => (val->string x) }) xs))
+    define (ring-str ring) := (foldr join "" (map (lambda (b) check { b => "L" | else => "U" }) ring))
+    define (bool-term b) := check { b => true | else => false }
+    define (pos-neg b g) := check { b => g | else => (not g) }
+
+    #--- Terms.
+    define (loc b) := check { b => L | else => U }
+    define (ll-term ring) := match ring { [] => empty:(Lst Location) | (list-of b t) => (lst (loc b) (ll-term t)) }
+    define (bucket-term xs) := match xs { [] => empty:(Lst N) | (list-of x t) => (lst (nat x) (bucket-term t)) }
+    define (dl-term ring buckets htl) :=
+        match [ring buckets] {
+          [[] _] => (dempty htl)
+        | [(list-of b t) (list-of bk bt)] => (dlst (loc b) (bucket-term bk) (dl-term t bt htl))
+        }
+    define (empty-buckets n) := (map (lambda (_) []) (range 0 n))
+
+    #--- Reference.
+    define (window ring k rv) :=
+        let {n := (length ring)} (map (lambda (i) (modn (plus k i) n)) (upto rv))
+    define (window-ok ring k rv) :=
+        check { (equal? (length ring) 0) => false
+              | else => (any? (lambda (p) (nth0 ring p)) (window ring k rv)) }
+    define (ncf-ok ring rv) := (all? (lambda (s) (window-ok ring s rv)) (range 0 (length ring)))
+    define (bi-ref ring k) := (modn k (length ring))
+    # Insertion of k with replication rv on `buckets`: [idx hi cw w b1 b2].
+    define (insert-ref ring rv k buckets) :=
+        let {n   := (length ring);
+             idx := (modn k n);
+             hi  := (mn n (plus idx (plus rv 1)));
+             cw  := (mx 0 (minus (plus idx (plus rv 1)) n));
+             w   := (mn cw n);
+             b1  := (map (lambda (p) let {b := (nth0 buckets p)}
+                                       check { (less? p idx) => b | (less? p hi) => (add k b) | else => b })
+                         (range 0 n));
+             b2  := (map (lambda (p) let {b := (nth0 b1 p)}
+                                       check { (less? p w) => (add k b) | else => b })
+                         (range 0 n))}
+          [idx hi cw w b1 b2]
+    # `in` walks the window of k2 and looks for k2, whatever the liveness.
+    define (in-ref ring buckets k2 rv) :=
+        (any? (lambda (p) (member-int? k2 (nth0 buckets p))) (window ring k2 rv))
+    # The set term that DL_L_S.values builds: alive buckets only.
+    define (values-union ring buckets) :=
+        match [ring buckets] {
+          [[] _] => Set.null:(Set.Set N)
+        | [(list-of b t) (list-of bk bt)] =>
+            check { b => (Set.\/ (l2s (bucket-term bk)) (values-union t bt)) | else => (values-union t bt) }
+        }
+    define (visible ring buckets) :=
+        (foldr join [] (map (lambda (p) check { (nth0 ring p) => (nth0 buckets p) | else => [] })
+                            (range 0 (length ring))))
+    define (set-term xs) := match xs { [] => Set.null:(Set.Set N) | (list-of x t) => (Set.insert (nat x) (set-term t)) }
+
+    #--- Premises.
+    define Nax     := (datatype-axioms "N")
+    define shape   := (join DLst.dlst-st-axioms (join DLst.dlst-se-axioms (join (datatype-axioms "Lst") Nax)))
+    define ak-prems  := (join DL_L_S.available_key_axioms [aliveL deadU])
+    define ncf-prems := (join DL_L_S.no_consecutive_failures_axioms ak-prems)
+    define bi-prems  := (join DL_L_S.bucketIndex_axioms shape)
+    define cw-prems  := (join DL_L_S.countWraps_axioms shape)
+    define ins-prems := (join DL_L_S.insertNAt_axioms shape)
+    define in-prems  := (join DL_L_S.in_axioms (join Lst.In.in-axioms Nax))
+    define opt-prems := [(datatype-axioms "Option") (datatype-axioms "Boolean") aliveL deadU]
+    define set-prems := (join Lst.toSet.toSet-axioms
+                        (join Set.in-def [Set.union-characterization Set.set-identity-characterization]))
+
+    #--- Classification and counters (counted per step).
+    define pass-c  := (cell 0)
+    define undec-c := (cell 0)
+    define mism-c  := (cell 0)
+    define (bump c) := (set! c (plus (ref c) 1))
+    # A deduction run inside a procedure extends the assumption base only
+    # within that expression. So each step is proved under `assume`s of the
+    # steps already proved for the same case (hyps), which makes them
+    # available as premises. Every hyp was itself proved, so the chain of
+    # steps establishes the final sentence.
+    define under := method (hyps goal prems)
+        match hyps {
+          [] => (!vprove-from goal prems eopts)
+        | (list-of h rest) => assume h (!under rest goal prems)
+        }
+    define (proves? hyps goal prems) := try { let {_ := (!under hyps goal prems)} true | false }
+    # Returns true when the step passes.
+    define (classify label hyps goal prems) :=
+        check { (proves? hyps goal prems) =>
+                  let {_ := (bump pass-c);
+                       _ := check { (equal? (modn (ref pass-c) 500) 0) =>
+                                      (print (str ["\nENUM progress: " (ref pass-c) " steps pass in this group\n"]))
+                                  | else => () }} true
+              | (proves? hyps (not goal) prems) =>
+                  let {_ := (bump mism-c);
+                       _ := (print (str ["\nENUM MISMATCH " label "\n"]))} false
+              | else =>
+                  let {_ := (bump undec-c);
+                       _ := (print (str ["\nENUM UNDECIDED " label "\n"]))} false }
+    # Steps are [name goal premises]; stop at the first step that does not
+    # pass. Returns [ok hyps], hyps extended with the steps that passed.
+    define (run-steps label steps hyps) :=
+        match steps {
+          [] => [true hyps]
+        | (list-of [name gl prm] rest) =>
+            check { (classify (str [label " step=" name]) hyps gl prm) => (run-steps label rest (join hyps [gl]))
+                  | else => [false hyps] }
+        }
+    define (report what) :=
+        let {p := (ref pass-c);
+             u := (ref undec-c);
+             m := (ref mism-c);
+             _ := (print (str ["\nENUM " what ": " p " steps pass, " u " undecided, " m " mismatch\n"]));
+             _ := (set! pass-c 0);
+             _ := (set! undec-c 0);
+             _ := (set! mism-c 0)}
+          check { (less? 0 m) => (test-fail (str ["enumeration mismatches in " what])) | else => () }
+
+    # Insertion of k (bucket k, value k) into `buckets`, in five steps.
+    # Returns [ok b2 final-equation].
+    define (insert-steps label ring rv k htl-alive buckets hyps) :=
+        let {r   := (insert-ref ring rv k buckets);
+             idx := (nth0 r 0);
+             cw  := (nth0 r 2);
+             b1  := (nth0 r 4);
+             b2  := (nth0 r 5);
+             H   := (loc htl-alive);
+             K   := (nat k);
+             D0  := (dl-term ring buckets H);
+             D1  := (dl-term ring b1 H);
+             D2  := (dl-term ring b2 H);
+             s1  := ((DL_L_S.bucketIndex K D0 D0 zero) = (nat idx));
+             s2  := ((DL_L_S.countWraps (nat idx) (S (nat rv)) D0) = (nat cw));
+             s3  := ((DL_L_S.insertNAt (nat idx) (S (nat rv)) K D0) = D1);
+             s4  := ((DL_L_S.insertNAt zero (nat cw) K D1) = D2);
+             s5  := ((DL_L_S.insertDPrList K (nat rv) K D0) = D2);
+             res := (run-steps label [["bucketIndex" s1 bi-prems]
+                                      ["countWraps" s2 cw-prems]
+                                      ["write [idx,n)" s3 ins-prems]
+                                      ["write [0,w)" s4 ins-prems]
+                                      ["insertDPrList" s5 (join DL_L_S.insertDPrList_axioms [s1 s2 s3 s4])]] hyps)}
+          [(nth0 res 0) b2 s5 (nth0 res 1)]
+
+    define rings   := (rings-up-to Mode.enum-ring)
+    define qrings  := (rings-up-to Mode.enum-query-ring)
+    define trings  := (rings-up-to Mode.enum-two-ring)
+    define rvs     := (upto Mode.enum-rv)
+    define qrvs    := (upto Mode.enum-query-rv)
+    define keys    := (upto Mode.enum-key)
+    define qkeys   := (upto Mode.enum-query-key)
+    define tkeys   := (upto Mode.enum-two-key)
+
+    #--- 1. available_key
+    (each (lambda (r) (each (lambda (rv) (each (lambda (k)
+        let {I := (dl-term r (empty-buckets (length r)) L)}
+          (classify (str ["available_key ring=" (ring-str r) " rv=" rv " k=" k]) []
+                    (pos-neg (window-ok r k rv) (DL_L_S.available_key (nat k) (nat rv) I I)) ak-prems))
+        keys)) rvs)) rings)
+    (report "available_key")
+
+    #--- 2. no_consecutive_failures
+    (each (lambda (r) (each (lambda (rv)
+        let {I := (dl-term r (empty-buckets (length r)) L)}
+          (classify (str ["no_consecutive_failures ring=" (ring-str r) " rv=" rv]) []
+                    (pos-neg (ncf-ok r rv) (DL_L_S.no_consecutive_failures (nat rv) I I)) ncf-prems))
+        rvs)) rings)
+    (report "no_consecutive_failures")
+
+    #--- 3. bucketIndex
+    (each (lambda (r) (each (lambda (k)
+        let {I := (dl-term r (empty-buckets (length r)) L)}
+          (classify (str ["bucketIndex ring=" (ring-str r) " k=" k]) []
+                    ((DL_L_S.bucketIndex (nat k) I I zero) = (nat (bi-ref r k))) bi-prems))
+        keys)) rings)
+    (report "bucketIndex")
+
+    #--- 4. insertDPrList
+    (each (lambda (r) (each (lambda (rv) (each (lambda (k)
+        (insert-steps (str ["insertDPrList ring=" (ring-str r) " rv=" rv " k=" k]) r rv k true (empty-buckets (length r)) []))
+        keys)) rvs)) rings)
+    (report "insertDPrList")
+
+    # Steps from the empty table to the representation of (dht_insert e k).
+    # Returns [ok b2 dht D2 rep-equation hyps].
+    define (one-insert-steps label r rv k ha) :=
+        let {n   := (length r);
+             H   := (loc ha);
+             RV  := (nat rv);
+             K   := (nat k);
+             I   := (dl-term r (empty-buckets n) H);
+             e   := (dht_empty (ll-term r) hf RV H);
+             dht := (dht_insert e K);
+             ins := (insert-steps label r rv k ha (empty-buckets n) []);
+             b2  := (nth0 ins 1);
+             D2  := (dl-term r b2 H);
+             idk := (!uspec Function.identity-definition K);
+             q1  := ((DL_L_S.initDPrList hf H (ll-term r)) = I);
+             q2  := ((DHTable.rep e) = (dhtr hf RV H I));
+             q3  := ((DHTable.rep dht) = (dhtr hf RV H D2));
+             res := check { (nth0 ins 0) =>
+                              (run-steps label [["initDPrList" q1 DL_L_S.initDPrList_axioms]
+                                                ["rep empty" q2 (join DHTable.rep_axioms [q1])]
+                                                ["rep insert" q3 (join DHTable.rep_axioms [q2 (nth0 ins 2) idk])]]
+                                         (join (nth0 ins 3) [idk]))
+                          | else => [false []] }}
+          [(nth0 res 0) b2 dht D2 q3 (nth0 res 1)]
+
+    # Steps from a representation to the query answer for key k2.
+    define (query-steps label r rv ha b2 dht D2 q3 k2 hyps) :=
+        let {RV   := (nat rv);
+             K2   := (nat k2);
+             idk2 := (!uspec Function.identity-definition K2);
+             wok  := (window-ok r k2 rv);
+             iok  := (in-ref r b2 k2 rv);
+             q4   := (pos-neg wok (DL_L_S.available_key (hf at K2) RV D2 D2));
+             q5   := (pos-neg iok (DL_L_S.in (hf at K2) RV D2 D2 K2));
+             exp  := check { (&& ha wok) => (SOME (bool-term iok)) | else => NONE:(Option Boolean) };
+             q6   := ((DHTable.query dht K2) = exp)}
+          (run-steps label [["window" q4 (join ak-prems [idk2])]
+                            ["in" q5 (join in-prems [idk2])]
+                            ["query" q6 (join DHTable.query_axioms (join DHTable.query_aux_axioms (join opt-prems [q3 q4 q5])))]]
+                     (join hyps [idk2]))
+
+    #--- 5. query after one insertion
+    (each (lambda (r) (each (lambda (rv) (each (lambda (k) (each (lambda (ha)
+        let {label := (str ["query1 ring=" (ring-str r) " rv=" rv " htl=" (ring-str [ha]) " insert=" k]);
+             one   := (one-insert-steps label r rv k ha)}
+          check { (nth0 one 0) =>
+                    (each (lambda (k2)
+                             (query-steps (str [label " key=" k2]) r rv ha (nth0 one 1) (nth0 one 2) (nth0 one 3) (nth0 one 4) k2 (nth0 one 5)))
+                          qkeys)
+                | else => () })
+        [true false])) qkeys)) qrvs)) qrings)
+    (report "query after one insertion")
+
+    #--- 6. query after two insertions (table location alive)
+    (each (lambda (r) (each (lambda (rv) (each (lambda (k1) (each (lambda (k2)
+        let {label := (str ["query2 ring=" (ring-str r) " rv=" rv " inserts=" k1 "," k2]);
+             one   := (one-insert-steps label r rv k1 true)}
+          check { (nth0 one 0) =>
+                    let {RV   := (nat rv);
+                         K2   := (nat k2);
+                         b2a  := (nth0 one 1);
+                         d1   := (nth0 one 2);
+                         D2a  := (nth0 one 3);
+                         ins2 := (insert-steps label r rv k2 true b2a (nth0 one 5));
+                         b2b  := (nth0 ins2 1);
+                         D2b  := (dl-term r b2b L);
+                         dht2 := (dht_insert d1 K2);
+                         idk  := (!uspec Function.identity-definition K2);
+                         q3b  := ((DHTable.rep dht2) = (dhtr hf RV L D2b))}
+                      check { (nth0 ins2 0) =>
+                                let {res := (run-steps label [["rep second insert" q3b (join DHTable.rep_axioms [(nth0 one 4) (nth0 ins2 2) idk])]]
+                                                       (join (nth0 ins2 3) [idk]))}
+                                  check { (nth0 res 0) =>
+                                            (each (lambda (k3) (query-steps (str [label " key=" k3]) r rv true b2b dht2 D2b q3b k3 (nth0 res 1))) tkeys)
+                                        | else => () }
+                            | else => () }
+                | else => () })
+        tkeys)) tkeys)) qrvs)) trings)
+    (report "query after two insertions")
+
+    #--- 7. values after one insertion
+    (each (lambda (r) (each (lambda (rv) (each (lambda (k) (each (lambda (ha)
+        let {label := (str ["values ring=" (ring-str r) " rv=" rv " htl=" (ring-str [ha]) " insert=" k]);
+             one   := (one-insert-steps label r rv k ha)}
+          check { (nth0 one 0) =>
+                    let {b2  := (nth0 one 1);
+                         dht := (nth0 one 2);
+                         D2  := (dl-term r b2 (loc ha));
+                         U0  := (values-union r b2);
+                         S0  := (set-term (visible r b2))}
+                      check { ha =>
+                                (run-steps label [["DL_L_S.values" ((DL_L_S.values D2) = (SOME U0)) (join DL_L_S.values_axioms [aliveL deadU])]
+                                                  ["as a set" (U0 = S0) (join set-prems Nax)]
+                                                  ["values" ((DHTable.values dht) = (SOME S0))
+                                                            [DHTable.values_axiom DHTable.values_aux_axioms (nth0 one 4)
+                                                             ((DL_L_S.values D2) = (SOME U0)) (U0 = S0)]]]
+                                           (nth0 one 5))
+                            | else =>
+                                (run-steps label [["DL_L_S.values" ((DL_L_S.values D2) = NONE:(Option (Set.Set N))) (join DL_L_S.values_axioms [deadU])]
+                                                  ["values" ((DHTable.values dht) = NONE:(Option (Set.Set N)))
+                                                            [DHTable.values_axiom DHTable.values_aux_axioms (nth0 one 4)
+                                                             ((DL_L_S.values D2) = NONE:(Option (Set.Set N)))]]]
+                                           (nth0 one 5)) }
+                | else => () })
+        [true false])) qkeys)) qrvs)) qrings)
+    (report "values after one insertion")
+}

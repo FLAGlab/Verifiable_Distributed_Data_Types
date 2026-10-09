@@ -746,7 +746,11 @@ module DL_L_S {
                     (!from-false (in bucket rv (initDPrList f htl lsts) (initDPrList f htl lsts) v)))
             )
 
-    ### in_after_insert_self (full proof, factored through helpers)
+    ### in_after_insert_self_bucket_zero (full proof, factored through helpers)
+    ###
+    ### The general statement, for any bucket index, is in_after_insert_self
+    ### at the end of this module. This special case is kept because its
+    ### helpers are simple and independent of `drop`.
     ###
     ### After insertDPrList at bucket=0 with any rv into a non-empty dlls, the
     ### value v is `in` the result at bucket 0. The proof is factored into
@@ -762,14 +766,6 @@ module DL_L_S {
     ###                                    applies to its output.
     ### The bucket=0 case then follows by unfolding insertDPrList into a chain
     ### through insertNAt and applying the second helper at w = countWraps...
-    ###
-    ### The general case (arbitrary bucket) would proceed by induction on
-    ### bucket (mirroring in_init_false_aux's pattern), but the inductive step
-    ### requires a more general statement than the base case provides — the
-    ### "tail of mod_dlls" differs from `insertDPrList bucket' rv v tail` by
-    ### exactly one wrap-prepend at position 0 whenever the wrap count is
-    ### positive. Deferred; bucket=0 is the case query_aux actually exercises
-    ### when bucket = (hf at v) and the hash hits the front of the bucket list.
 
     # Helper 1: a dlls whose head bucket starts with v is always `in`-findable
     # at bucket 0, regardless of rv (case-split on rv).
@@ -899,65 +895,9 @@ module DL_L_S {
                 <== true [helper]
             ])
 
-    ### in_after_insert_self, general bucket: status and proof obligation
-    ###
-    ### The natural statement is:
-    ###
-    ###     forall dlls bucket rv v .
-    ###         [bucket < size(dlls), rv+1 <= size(dlls)] ==>
-    ###         (in bucket rv (insertDPrList bucket rv v dlls)
-    ###                       (insertDPrList bucket rv v dlls) v)
-    ###
-    ### Without the `bucket < size(dlls)` precondition the lemma is actually
-    ### false: for bucket=1, rv=0, dlls=(dlst lh lsts (dempty htl)), the
-    ### query `in 1 0 ...` walks to the dempty terminus (not a real bucket)
-    ### and returns false, while the insert wraps `v` back to bucket 0 where
-    ### the query never looks.
-    ###
-    ### A full proof therefore needs either (a) a `size:(DLst (Lst S)) -> N`
-    ### function plus an `<` predicate to state and propagate the precondition
-    ### through bucket-induction, or (b) the lemma re-stated with a recursive
-    ### "depth-witness" precondition like `tail_dlls = (dlst lh' lsts' tail')`
-    ### unfolded `bucket` levels. Both are mechanically tractable but each
-    ### would add a non-trivial chunk of infrastructure. For the moment the
-    ### bucket=0 case above is the version actually exercised by query_aux
-    ### when the hash function maps v to the start of the bucket list; the
-    ### general case is left as a TODO.
-    ###
-    ### Inductive structure (informal sketch):
-    ###   induct on bucket;
-    ###   base bucket=0: in_after_insert_self_bucket_zero (proved above);
-    ###   step bucket=(S bucket'): unfold insertDPrList to expose the
-    ###     `(dlst lh ? (insertNAt bucket' (S rv) v tail))` structure, apply
-    ###     the (S bucket)/dlst axiom of `in` to drop one bucket, and recurse
-    ###     into the tail via IH — provided tail itself satisfies the depth
-    ###     precondition, which is exactly the recursive obligation discussed
-    ###     above.
-
-    ### in_after_insert_other (TODO — asserted, not yet proved)
-    ###
-    ### When v ≠ v0, inserting v0 into dlls leaves the result of `in` for v
-    ### unchanged. Stated for the diagonal `o_dlls = dlls` case, which is
-    ### the form `query_aux` exercises (cf. dhtable_mateo.ath:148-153).
-    ###
-    ### Proof sketch (deferred): structural induction on
-    ### dlls with an inner case-split on whether the query's `bucket0` falls
-    ### inside the insert's rv+1-window starting at `bucket` (with wrap).
-    ###   * Inside the window: insertDPrList prepends v0 to the bucket;
-    ###     since v ≠ v0 the (Lst.in v _) value is unchanged, so each `in`
-    ###     conditional branch evaluates identically before and after.
-    ###   * Outside the window: the bucket is untouched by insertDPrList,
-    ###     so the equivalence falls out of the recursive call on the tail.
-    # TODO: discharge by structural induction on dlls with the inner
-    # window-membership case-split described above.
-    define in_after_insert_other :=
-        (forall bucket bucket0 rv v v0 dlls .
-            (~ (v = v0)) ==>
-            ((in bucket0 rv (insertDPrList bucket rv v0 dlls)
-                            (insertDPrList bucket rv v0 dlls) v)
-             <==>
-             (in bucket0 rv dlls dlls v)))
-    assert in_after_insert_other
+    ### in_after_insert_self (any bucket index) and in_after_insert_other are
+    ### proven at the end of this module, after `drop` and the location
+    ### lemmas that their proofs use.
 
 
     ### available_key
@@ -2811,6 +2751,721 @@ module DL_L_S {
                                 = (values (insertNAt zero w v0 d1))        [ins]
                                 = (SOME (insert v0 s0))                    [r2] ]))
 
+
+    ### Lookup after insertion (PROVEN).
+    ###
+    ### in_after_insert_other: inserting v0 =/= v does not change the result of
+    ### `in` for v. `in` reads a bucket only through (Lst.in v lsts), so it sees
+    ### a bucket list only through `same_mem v` (in_mem_inv_all, same structure
+    ### as available_key_locs_inv_all), and insertion of v0 preserves same_mem.
+    ###
+    ### in_after_insert_self: after inserting v at any bucket index of a
+    ### non-empty bucket list, `in` finds v. The lookup walk ends at the bucket
+    ### that bucketIndex computes (in_walk), insertion does not change that
+    ### index (bucketIndex_insert_invariant), and that bucket starts with v
+    ### (head_after_insertNAt, head_kept_insertNAt).
+
+
+    ### same_mem v d1 d2: the two bucket lists have the same shape and agree,
+    ### bucket by bucket, on whether the bucket contains v.
+    declare same_mem : (S) [S (DLst (Lst S)) (DLst (Lst S))] -> Boolean
+    assert same_mem_axioms := (fun [
+        (same_mem v (dempty htl) (dempty htl0)) <==> true
+        (same_mem v (dempty htl) (dlst lh2 lsts2 tail_dlls2)) <==> false
+        (same_mem v (dlst lh lsts tail_dlls) (dempty htl0)) <==> false
+        (same_mem v (dlst lh lsts tail_dlls) (dlst lh2 lsts2 tail_dlls2)) <==>
+            (((Lst.in v lsts) <==> (Lst.in v lsts2)) & (same_mem v tail_dlls tail_dlls2))
+    ])
+
+    # same_mem is reflexive (PROVEN).
+    define same_mem_refl :=
+        (forall dlls v . same_mem v dlls dlls)
+    by-induction same_mem_refl {
+        (dempty htl:Location) =>
+            pick-any v:'S
+                (!chain-> [ true ==> (same_mem v (dempty htl) (dempty htl)) [same_mem_axioms] ])
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall v . same_mem v tail_dlls tail_dlls) }
+            pick-any v:'S
+                let { e  := (!chain-> [ true ==> ((Lst.in v lsts) <==> (Lst.in v lsts)) [prop-taut] ]);
+                      ih := (!uspec IH v) }
+                (!chain-> [ (!both e ih)
+                    ==> (same_mem v (dlst lh lsts tail_dlls) (dlst lh lsts tail_dlls)) [same_mem_axioms] ])
+    }
+
+    # Both empty, or both non-empty with heads that agree on v and tails
+    # related by same_mem (PROVEN).
+    define mem_cases :=
+        (forall v dlls1 dlls2 .
+            (same_mem v dlls1 dlls2) ==>
+            ((exists htl htl0 . ((dlls1 = (dempty htl)) & (dlls2 = (dempty htl0))))
+             | (exists lh lsts1 tail_dlls lh2 lsts2 tail_dlls2 .
+                    ((dlls1 = (dlst lh lsts1 tail_dlls)) &
+                     ((dlls2 = (dlst lh2 lsts2 tail_dlls2)) &
+                      (((Lst.in v lsts1) <==> (Lst.in v lsts2)) &
+                       (same_mem v tail_dlls tail_dlls2)))))))
+    conclude mem_cases
+      pick-any v:'S d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume hsl := (same_mem v d1 d2)
+          let { leftS  := (exists htl htl0 . ((d1 = (dempty htl)) & (d2 = (dempty htl0))));
+                rightS := (exists lh lsts1 tail_dlls lh2 lsts2 tail_dlls2 .
+                             ((d1 = (dlst lh lsts1 tail_dlls)) &
+                              ((d2 = (dlst lh2 lsts2 tail_dlls2)) &
+                               (((Lst.in v lsts1) <==> (Lst.in v lsts2)) &
+                                (same_mem v tail_dlls tail_dlls2)))));
+                goal   := (leftS | rightS) }
+          (!cases (!uspec DLst.dlst-no-junk d1)
+            assume e1 := (exists ?x1:Location . d1 = (dempty ?x1))
+              pick-witness h1 for e1 d1e
+              (!cases (!uspec DLst.dlst-no-junk d2)
+                assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                  pick-witness h2 for e2 d2e
+                    let { _ := (!both d1e d2e) }
+                    (!either (!egen* leftS [h1 h2]) rightS)
+                assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d2 = (dlst ?x1 ?x2 ?x3))
+                  pick-witnesses a2 s2 t2 for e2 d2e
+                    let { _ := (!chain-> [ hsl ==> (same_mem v (dempty h1) (dlst a2 s2 t2)) [d1e d2e]
+                                              ==> false                                    [same_mem_axioms] ]) }
+                    (!from-false goal))
+            assume e1 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d1 = (dlst ?x1 ?x2 ?x3))
+              pick-witnesses a1 s1 t1 for e1 d1e
+              (!cases (!uspec DLst.dlst-no-junk d2)
+                assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                  pick-witness h2 for e2 d2e
+                    let { _ := (!chain-> [ hsl ==> (same_mem v (dlst a1 s1 t1) (dempty h2)) [d1e d2e]
+                                              ==> false                                    [same_mem_axioms] ]) }
+                    (!from-false goal)
+                assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d2 = (dlst ?x1 ?x2 ?x3))
+                  pick-witnesses a2 s2 t2 for e2 d2e
+                    let { c := (!chain-> [ hsl ==> (same_mem v (dlst a1 s1 t1) (dlst a2 s2 t2)) [d1e d2e]
+                                              ==> (((Lst.in v s1) <==> (Lst.in v s2)) & (same_mem v t1 t2)) [same_mem_axioms] ]);
+                          _ := (!both d1e (!both d2e c)) }
+                    (!either leftS (!egen* rightS [a1 s1 t1 a2 s2 t2]))))
+
+    # (mi-inv B R v): `in` at (B, R) for the key v sees its list arguments only
+    # through same_mem. Same structure as ak-inv above.
+    define (mi-inv B R v) :=
+        (forall dlls1 dlls2 . (same_mem v dlls1 dlls2) ==>
+           forall o_dlls1 o_dlls2 . (same_mem v o_dlls1 o_dlls2) ==>
+             ((in B R dlls1 o_dlls1 v) <==> (in B R dlls2 o_dlls2 v)))
+
+    define (mi-dlst B R v) :=
+        (forall lh lsts1 tail_dlls lh2 lsts2 tail_dlls2 .
+           (((Lst.in v lsts1) <==> (Lst.in v lsts2)) & (same_mem v tail_dlls tail_dlls2)) ==>
+           forall o_dlls1 o_dlls2 . (same_mem v o_dlls1 o_dlls2) ==>
+             ((in B R (dlst lh lsts1 tail_dlls) o_dlls1 v) <==> (in B R (dlst lh2 lsts2 tail_dlls2) o_dlls2 v)))
+
+    # mi-close: from (mi-dlst B R v) in the assumption base, conclude (mi-inv B R v).
+    define (mi-close B R v dc) :=
+      pick-any d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume deq := (same_mem v d1 d2)
+          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+            assume oeq := (same_mem v o1 o2)
+              (!cases (!mp (!uspec* mem_cases [v d1 d2]) deq)
+                assume demp := (exists htl htl0 . ((d1 = (dempty htl)) & (d2 = (dempty htl0))))
+                  pick-witnesses h1 h2 for demp dw
+                    let { d1e := (!left-and dw);
+                          d2e := (!right-and dw) }
+                    (!cases (!mp (!uspec* mem_cases [v o1 o2]) oeq)
+                      assume oemp := (exists htl htl0 . ((o1 = (dempty htl)) & (o2 = (dempty htl0))))
+                        pick-witnesses g1 g2 for oemp ow
+                          let { o1e := (!left-and ow);
+                                o2e := (!right-and ow);
+                                f1  := (!chain [ (in B R d1 o1 v)
+                                               <==> (in B R (dempty h1) (dempty g1) v)   [d1e o1e]
+                                               <==> false                                 [in_axioms] ]);
+                                f2  := (!chain [ (in B R d2 o2 v)
+                                               <==> (in B R (dempty h2) (dempty g2) v)   [d2e o2e]
+                                               <==> false                                 [in_axioms] ]) }
+                          (!chain [ (in B R d1 o1 v) <==> false [f1] <==> (in B R d2 o2 v) [f2] ])
+                      assume ocons := (exists lh lsts1 tail_dlls lh2 lsts2 tail_dlls2 .
+                                         ((o1 = (dlst lh lsts1 tail_dlls)) &
+                                          ((o2 = (dlst lh2 lsts2 tail_dlls2)) &
+                                           (((Lst.in v lsts1) <==> (Lst.in v lsts2)) &
+                                            (same_mem v tail_dlls tail_dlls2)))))
+                        pick-witnesses a1 s1 t1 a2 s2 t2 for ocons ow
+                          let { o1e  := (!left-and ow);
+                                o2e  := (!left-and (!right-and ow));
+                                hrest := (!right-and (!right-and ow));
+                                step := (!mp (!uspec* (!mp (!uspec* dc [a1 s1 t1 a2 s2 t2]) hrest) [o1 o2]) oeq) }
+                          (!chain [ (in B R d1 o1 v)
+                                  <==> (in B R (dempty h1) (dlst a1 s1 t1) v)          [d1e o1e]
+                                  <==> (in B R (dlst a1 s1 t1) (dlst a1 s1 t1) v)      [in_axioms]
+                                  <==> (in B R (dlst a1 s1 t1) o1 v)                   [o1e]
+                                  <==> (in B R (dlst a2 s2 t2) o2 v)                   [step]
+                                  <==> (in B R (dlst a2 s2 t2) (dlst a2 s2 t2) v)      [o2e]
+                                  <==> (in B R (dempty h2) (dlst a2 s2 t2) v)          [in_axioms]
+                                  <==> (in B R d2 o2 v)                                [d2e o2e] ]))
+                assume dcons := (exists lh lsts1 tail_dlls lh2 lsts2 tail_dlls2 .
+                                   ((d1 = (dlst lh lsts1 tail_dlls)) &
+                                    ((d2 = (dlst lh2 lsts2 tail_dlls2)) &
+                                     (((Lst.in v lsts1) <==> (Lst.in v lsts2)) &
+                                      (same_mem v tail_dlls tail_dlls2)))))
+                  pick-witnesses a1 s1 t1 a2 s2 t2 for dcons dw
+                    let { d1e  := (!left-and dw);
+                          d2e  := (!left-and (!right-and dw));
+                          hrest := (!right-and (!right-and dw));
+                          step := (!mp (!uspec* (!mp (!uspec* dc [a1 s1 t1 a2 s2 t2]) hrest) [o1 o2]) oeq) }
+                    (!chain [ (in B R d1 o1 v)
+                            <==> (in B R (dlst a1 s1 t1) o1 v)   [d1e]
+                            <==> (in B R (dlst a2 s2 t2) o2 v)   [step]
+                            <==> (in B R d2 o2 v)                [d2e] ]))
+
+    define in_mem_inv_all := (forall B . (forall R . (forall v . (mi-inv B R v))))
+
+    by-induction in_mem_inv_all {
+      zero =>
+        by-induction (forall R . (forall v . (mi-inv zero R v))) {
+          zero =>
+            pick-any v:'S
+              let { dc := (mi-dlst zero zero v);
+                    _  := conclude dc
+                            pick-any a1:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                     a2:Location s2:(Lst 'S) t2:(DLst (Lst 'S))
+                              assume hh := (((Lst.in v s1) <==> (Lst.in v s2)) & (same_mem v t1 t2))
+                                pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                                  assume (same_mem v o1 o2)
+                                    let { hi := (!left-and hh) }
+                                    (!chain [ (in zero zero (dlst a1 s1 t1) o1 v)
+                                            <==> (Lst.in v s1)                         [in_axioms]
+                                            <==> (Lst.in v s2)                         [hi]
+                                            <==> (in zero zero (dlst a2 s2 t2) o2 v)   [in_axioms] ]) }
+              (!mi-close zero zero v dc)
+        | (S n) =>
+            let { ih := (forall v . (mi-inv zero n v)) }
+            pick-any v:'S
+              let { dc := (mi-dlst zero (S n) v);
+                    _  := conclude dc
+                            pick-any a1:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                     a2:Location s2:(Lst 'S) t2:(DLst (Lst 'S))
+                              assume hh := (((Lst.in v s1) <==> (Lst.in v s2)) & (same_mem v t1 t2))
+                                pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                                  assume ho := (same_mem v o1 o2)
+                                    let { hi  := (!left-and hh);
+                                          ht  := (!right-and hh);
+                                          ihi := (!mp (!uspec* (!mp (!uspec* (!uspec ih v) [t1 t2]) ht) [o1 o2]) ho) }
+                                    (!two-cases
+                                      assume i1 := (Lst.in v s1)
+                                        let { i2 := (!chain-> [ i1 ==> (Lst.in v s2) [hi] ]);
+                                              e1 := (!chain-> [ i1 ==> ((in zero (S n) (dlst a1 s1 t1) o1 v) <==> true) [in_axioms] ]);
+                                              e2 := (!chain-> [ i2 ==> ((in zero (S n) (dlst a2 s2 t2) o2 v) <==> true) [in_axioms] ]) }
+                                        (!chain [ (in zero (S n) (dlst a1 s1 t1) o1 v)
+                                                <==> true                                    [e1]
+                                                <==> (in zero (S n) (dlst a2 s2 t2) o2 v)    [e2] ])
+                                      assume n1 := (~ Lst.in v s1)
+                                        let { n2 := (!by-contradiction (~ Lst.in v s2)
+                                                       assume i2 := (Lst.in v s2)
+                                                         (!absurd (!chain-> [ i2 ==> (Lst.in v s1) [hi] ]) n1));
+                                              e1 := (!chain-> [ n1 ==> ((in zero (S n) (dlst a1 s1 t1) o1 v) <==> (in zero n t1 o1 v)) [in_axioms] ]);
+                                              e2 := (!chain-> [ n2 ==> ((in zero (S n) (dlst a2 s2 t2) o2 v) <==> (in zero n t2 o2 v)) [in_axioms] ]) }
+                                        (!chain [ (in zero (S n) (dlst a1 s1 t1) o1 v)
+                                                <==> (in zero n t1 o1 v)                     [e1]
+                                                <==> (in zero n t2 o2 v)                     [ihi]
+                                                <==> (in zero (S n) (dlst a2 s2 t2) o2 v)    [e2] ])) }
+              (!mi-close zero (S n) v dc)
+        }
+    | (S n) =>
+        let { ih := (forall R . (forall v . (mi-inv n R v))) }
+        pick-any R0:N
+          pick-any v:'S
+            let { dc := (mi-dlst (S n) R0 v);
+                  _  := conclude dc
+                          pick-any a1:Location s1:(Lst 'S) t1:(DLst (Lst 'S))
+                                   a2:Location s2:(Lst 'S) t2:(DLst (Lst 'S))
+                            assume hh := (((Lst.in v s1) <==> (Lst.in v s2)) & (same_mem v t1 t2))
+                              pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                                assume ho := (same_mem v o1 o2)
+                                  let { ht  := (!right-and hh);
+                                        ihi := (!mp (!uspec* (!mp (!uspec* (!uspec* ih [R0 v]) [t1 t2]) ht) [o1 o2]) ho) }
+                                  (!chain [ (in (S n) R0 (dlst a1 s1 t1) o1 v)
+                                          <==> (in n R0 t1 o1 v)                  [in_axioms]
+                                          <==> (in n R0 t2 o2 v)                  [ihi]
+                                          <==> (in (S n) R0 (dlst a2 s2 t2) o2 v) [in_axioms] ]) }
+            (!mi-close (S n) R0 v dc)
+    }
+
+    # same_mem is transitive (PROVEN, by induction on the first list).
+    define same_mem_trans :=
+        (forall dlls1 v dlls2 o_dlls1 .
+            ((same_mem v dlls1 dlls2) & (same_mem v dlls2 o_dlls1)) ==> (same_mem v dlls1 o_dlls1))
+    by-induction same_mem_trans {
+        (dempty h1:Location) =>
+            pick-any v:'S d2:(DLst (Lst 'S)) d3:(DLst (Lst 'S))
+              assume hyp := ((same_mem v (dempty h1) d2) & (same_mem v d2 d3))
+                let { hy1 := (!left-and hyp);
+                      hy2 := (!right-and hyp) }
+                (!cases (!uspec DLst.dlst-no-junk d2)
+                  assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                    pick-witness h2 for e2 d2e
+                    (!cases (!uspec DLst.dlst-no-junk d3)
+                      assume e3 := (exists ?x1:Location . d3 = (dempty ?x1))
+                        pick-witness h3 for e3 d3e
+                          (!chain-> [ true ==> (same_mem v (dempty h1) (dempty h3)) [same_mem_axioms]
+                                           ==> (same_mem v (dempty h1) d3)          [d3e] ])
+                      assume e3 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d3 = (dlst ?x1 ?x2 ?x3))
+                        pick-witnesses a3 s3 t3 for e3 d3e
+                          let { _ := (!chain-> [ hy2 ==> (same_mem v (dempty h2) (dlst a3 s3 t3)) [d2e d3e]
+                                                     ==> false                                    [same_mem_axioms] ]) }
+                          (!from-false (same_mem v (dempty h1) d3)))
+                  assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d2 = (dlst ?x1 ?x2 ?x3))
+                    pick-witnesses a2 s2 t2 for e2 d2e
+                      let { _ := (!chain-> [ hy1 ==> (same_mem v (dempty h1) (dlst a2 s2 t2)) [d2e]
+                                                 ==> false                                    [same_mem_axioms] ]) }
+                      (!from-false (same_mem v (dempty h1) d3)))
+      | (dlst a1:Location s1:(Lst 'S) t1:(DLst (Lst 'S))) =>
+            let { IH := (forall v dlls2 o_dlls1 .
+                            ((same_mem v t1 dlls2) & (same_mem v dlls2 o_dlls1)) ==> (same_mem v t1 o_dlls1)) }
+            pick-any v:'S d2:(DLst (Lst 'S)) d3:(DLst (Lst 'S))
+              assume hyp := ((same_mem v (dlst a1 s1 t1) d2) & (same_mem v d2 d3))
+                let { hy1 := (!left-and hyp);
+                      hy2 := (!right-and hyp) }
+                (!cases (!uspec DLst.dlst-no-junk d2)
+                  assume e2 := (exists ?x1:Location . d2 = (dempty ?x1))
+                    pick-witness h2 for e2 d2e
+                      let { _ := (!chain-> [ hy1 ==> (same_mem v (dlst a1 s1 t1) (dempty h2)) [d2e]
+                                                 ==> false                                    [same_mem_axioms] ]) }
+                      (!from-false (same_mem v (dlst a1 s1 t1) d3))
+                  assume e2 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d2 = (dlst ?x1 ?x2 ?x3))
+                    pick-witnesses a2 s2 t2 for e2 d2e
+                    (!cases (!uspec DLst.dlst-no-junk d3)
+                      assume e3 := (exists ?x1:Location . d3 = (dempty ?x1))
+                        pick-witness h3 for e3 d3e
+                          let { _ := (!chain-> [ hy2 ==> (same_mem v (dlst a2 s2 t2) (dempty h3)) [d2e d3e]
+                                                     ==> false                                    [same_mem_axioms] ]) }
+                          (!from-false (same_mem v (dlst a1 s1 t1) d3))
+                      assume e3 := (exists ?x1:Location ?x2:(Lst 'S) ?x3:(DLst (Lst 'S)) . d3 = (dlst ?x1 ?x2 ?x3))
+                        pick-witnesses a3 s3 t3 for e3 d3e
+                          let { c1 := (!chain-> [ hy1 ==> (same_mem v (dlst a1 s1 t1) (dlst a2 s2 t2)) [d2e]
+                                                      ==> (((Lst.in v s1) <==> (Lst.in v s2)) & (same_mem v t1 t2)) [same_mem_axioms] ]);
+                                c2 := (!chain-> [ hy2 ==> (same_mem v (dlst a2 s2 t2) (dlst a3 s3 t3)) [d2e d3e]
+                                                      ==> (((Lst.in v s2) <==> (Lst.in v s3)) & (same_mem v t2 t3)) [same_mem_axioms] ]);
+                                i13 := (!chain-> [ (!both (!left-and c1) (!left-and c2))
+                                                   ==> ((Lst.in v s1) <==> (Lst.in v s3)) [prop-taut] ]);
+                                t13 := (!mp (!uspec* IH [v t2 t3]) (!both (!right-and c1) (!right-and c2))) }
+                          (!chain-> [ (!both i13 t13)
+                              ==> (same_mem v (dlst a1 s1 t1) (dlst a3 s3 t3)) [same_mem_axioms]
+                              ==> (same_mem v (dlst a1 s1 t1) d3)              [d3e] ])))
+    }
+
+    # Inserting v0 =/= v does not change which buckets contain v (PROVEN).
+    define same_mem_insertNAt :=
+        (forall dlls bucket n v v0 .
+            (~ (v = v0)) ==> (same_mem v (insertNAt bucket n v0 dlls) dlls))
+    by-induction same_mem_insertNAt {
+        (dempty htl:Location) =>
+            pick-any bucket:N n:N v:'S v0:'S
+              assume nv := (~ (v = v0))
+                let { ins := datatype-cases ((insertNAt bucket n v0 (dempty htl)) = (dempty htl)) on n {
+                              zero   => (!chain [(insertNAt bucket zero v0 (dempty htl)) = (dempty htl) [insertNAt_axioms]])
+                            | (S m') => (!chain [(insertNAt bucket (S m') v0 (dempty htl)) = (dempty htl) [insertNAt_axioms]])
+                          } }
+                (!chain-> [ true ==> (same_mem v (dempty htl) (dempty htl))                       [same_mem_axioms]
+                                 ==> (same_mem v (insertNAt bucket n v0 (dempty htl)) (dempty htl)) [ins] ])
+      | (dlst lh:Location lsts:(Lst 'S) tail_dlls:(DLst (Lst 'S))) =>
+            let { IH := (forall bucket n v v0 .
+                            (~ (v = v0)) ==> (same_mem v (insertNAt bucket n v0 tail_dlls) tail_dlls)) }
+            pick-any bucket:N n:N v:'S v0:'S
+              assume nv := (~ (v = v0))
+                datatype-cases (same_mem v (insertNAt bucket n v0 (dlst lh lsts tail_dlls)) (dlst lh lsts tail_dlls)) on n {
+                    zero =>
+                        let { rf  := (!uspec* same_mem_refl [(dlst lh lsts tail_dlls) v]);
+                              ins := (!chain [ (insertNAt bucket zero v0 (dlst lh lsts tail_dlls))
+                                             = (dlst lh lsts tail_dlls)                          [insertNAt_axioms] ]);
+                              eqv := (!chain [ (same_mem v (insertNAt bucket zero v0 (dlst lh lsts tail_dlls)) (dlst lh lsts tail_dlls))
+                                             <==> (same_mem v (dlst lh lsts tail_dlls) (dlst lh lsts tail_dlls)) [ins] ]) }
+                        (!mp (!right-iff eqv) rf)
+                  | (S m') =>
+                        datatype-cases (same_mem v (insertNAt bucket (S m') v0 (dlst lh lsts tail_dlls)) (dlst lh lsts tail_dlls)) on bucket {
+                            zero =>
+                                let { e := (!equiv
+                                              (assume h := (Lst.in v (lst v0 lsts))
+                                                 (!dsyl (!chain-> [ h ==> ((v = v0) | (Lst.in v lsts)) [Lst.In.in-lst-axiom] ]) nv))
+                                              (assume h := (Lst.in v lsts)
+                                                 (!chain-> [ h ==> ((v = v0) | (Lst.in v lsts)) [alternate]
+                                                               ==> (Lst.in v (lst v0 lsts))      [Lst.In.in-lst-axiom] ])));
+                                      ih := (!mp (!uspec* IH [zero m' v v0]) nv) }
+                                (!chain-> [ (!both e ih)
+                                    ==> (same_mem v (dlst lh (lst v0 lsts) (insertNAt zero m' v0 tail_dlls)) (dlst lh lsts tail_dlls)) [same_mem_axioms]
+                                    ==> (same_mem v (insertNAt zero (S m') v0 (dlst lh lsts tail_dlls)) (dlst lh lsts tail_dlls))     [insertNAt_axioms] ])
+                          | (S b') =>
+                                let { e  := (!chain-> [ true ==> ((Lst.in v lsts) <==> (Lst.in v lsts)) [prop-taut] ]);
+                                      ih := (!mp (!uspec* IH [b' (S m') v v0]) nv) }
+                                (!chain-> [ (!both e ih)
+                                    ==> (same_mem v (dlst lh lsts (insertNAt b' (S m') v0 tail_dlls)) (dlst lh lsts tail_dlls)) [same_mem_axioms]
+                                    ==> (same_mem v (insertNAt (S b') (S m') v0 (dlst lh lsts tail_dlls)) (dlst lh lsts tail_dlls)) [insertNAt_axioms] ])
+                        }
+                }
+    }
+
+    define same_mem_insertDPrList :=
+        (forall bucket rv v v0 dlls .
+            (~ (v = v0)) ==> (same_mem v (insertDPrList bucket rv v0 dlls) dlls))
+    conclude same_mem_insertDPrList
+        pick-any bucket:N rv:N v:'S v0:'S dlls:(DLst (Lst 'S))
+          assume nv := (~ (v = v0))
+            let { idx := (bucketIndex bucket dlls dlls zero);
+                  d1  := (insertNAt idx (S rv) v0 dlls);
+                  w   := (countWraps idx (S rv) dlls);
+                  s1  := (!mp (!uspec* same_mem_insertNAt [d1 zero w v v0]) nv);
+                  s2  := (!mp (!uspec* same_mem_insertNAt [dlls idx (S rv) v v0]) nv);
+                  s12 := (!mp (!uspec* same_mem_trans [(insertNAt zero w v0 d1) v d1 dlls]) (!both s1 s2)) }
+            (!chain-> [ s12 ==> (same_mem v (insertDPrList bucket rv v0 dlls) dlls) [insertDPrList_axioms] ])
+
+    define in_after_insert_other :=
+        (forall bucket bucket0 rv v v0 dlls .
+            (~ (v = v0)) ==>
+            ((in bucket0 rv (insertDPrList bucket rv v0 dlls)
+                            (insertDPrList bucket rv v0 dlls) v)
+             <==>
+             (in bucket0 rv dlls dlls v)))
+    conclude in_after_insert_other
+        pick-any bucket:N bucket0:N rv:N v:'S v0:'S dlls:(DLst (Lst 'S))
+          assume nv := (~ (v = v0))
+            let { d' := (insertDPrList bucket rv v0 dlls);
+                  sm := (!mp (!uspec* same_mem_insertDPrList [bucket rv v v0 dlls]) nv) }
+            (!mp (!uspec* (!mp (!uspec* (!uspec* in_mem_inv_all [bucket0 rv v]) [d' dlls]) sm) [d' dlls]) sm)
+
+    ### bucketIndex sees its list arguments only through their locations
+    ### (PROVEN, same structure as ak-inv).
+    define (bi-inv B) :=
+        (forall dlls1 dlls2 . (same_locs dlls1 dlls2) ==>
+           forall o_dlls1 o_dlls2 . (same_locs o_dlls1 o_dlls2) ==>
+             forall n . (bucketIndex B dlls1 o_dlls1 n) = (bucketIndex B dlls2 o_dlls2 n))
+
+    define (bi-dlst B) :=
+        (forall lh lsts1 tail_dlls lsts2 tail_dlls2 . (same_locs tail_dlls tail_dlls2) ==>
+           forall o_dlls1 o_dlls2 . (same_locs o_dlls1 o_dlls2) ==>
+             forall n . (bucketIndex B (dlst lh lsts1 tail_dlls) o_dlls1 n) =
+                        (bucketIndex B (dlst lh lsts2 tail_dlls2) o_dlls2 n))
+
+    define (bi-close B dc) :=
+      pick-any d1:(DLst (Lst 'S)) d2:(DLst (Lst 'S))
+        assume deq := (same_locs d1 d2)
+          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+            assume oeq := (same_locs o1 o2)
+              pick-any n:N
+              (!cases (!mp (!uspec* locs_eq_cases [d1 d2]) deq)
+                assume demp := (exists htl htl0 . ((d1 = (dempty htl)) & (d2 = (dempty htl0))))
+                  pick-witnesses h1 h2 for demp dw
+                    let { d1e := (!left-and dw);
+                          d2e := (!right-and dw) }
+                    (!cases (!mp (!uspec* locs_eq_cases [o1 o2]) oeq)
+                      assume oemp := (exists htl htl0 . ((o1 = (dempty htl)) & (o2 = (dempty htl0))))
+                        pick-witnesses g1 g2 for oemp ow
+                          let { o1e := (!left-and ow);
+                                o2e := (!right-and ow) }
+                          (!chain [ (bucketIndex B d1 o1 n)
+                                  = (bucketIndex B (dempty h1) (dempty g1) n)  [d1e o1e]
+                                  = zero                                        [bucketIndex_axioms]
+                                  = (bucketIndex B (dempty h2) (dempty g2) n)  [bucketIndex_axioms]
+                                  = (bucketIndex B d2 o2 n)                    [d2e o2e] ])
+                      assume ocons := (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                                         ((o1 = (dlst lh lsts1 tail_dlls)) &
+                                          ((o2 = (dlst lh lsts2 tail_dlls2)) &
+                                           (same_locs tail_dlls tail_dlls2))))
+                        pick-witnesses a s1 t1 s2 t2 for ocons ow
+                          let { o1e  := (!left-and ow);
+                                o2e  := (!left-and (!right-and ow));
+                                teq  := (!right-and (!right-and ow));
+                                step := (!uspec (!mp (!uspec* (!mp (!uspec* dc [a s1 t1 s2 t2]) teq) [o1 o2]) oeq) zero) }
+                          (!chain [ (bucketIndex B d1 o1 n)
+                                  = (bucketIndex B (dempty h1) (dlst a s1 t1) n)            [d1e o1e]
+                                  = (bucketIndex B (dlst a s1 t1) (dlst a s1 t1) zero)      [bucketIndex_axioms]
+                                  = (bucketIndex B (dlst a s1 t1) o1 zero)                  [o1e]
+                                  = (bucketIndex B (dlst a s2 t2) o2 zero)                  [step]
+                                  = (bucketIndex B (dlst a s2 t2) (dlst a s2 t2) zero)      [o2e]
+                                  = (bucketIndex B (dempty h2) (dlst a s2 t2) n)            [bucketIndex_axioms]
+                                  = (bucketIndex B d2 o2 n)                                 [d2e o2e] ]))
+                assume dcons := (exists lh lsts1 tail_dlls lsts2 tail_dlls2 .
+                                   ((d1 = (dlst lh lsts1 tail_dlls)) &
+                                    ((d2 = (dlst lh lsts2 tail_dlls2)) &
+                                     (same_locs tail_dlls tail_dlls2))))
+                  pick-witnesses a s1 t1 s2 t2 for dcons dw
+                    let { d1e  := (!left-and dw);
+                          d2e  := (!left-and (!right-and dw));
+                          teq  := (!right-and (!right-and dw));
+                          step := (!uspec (!mp (!uspec* (!mp (!uspec* dc [a s1 t1 s2 t2]) teq) [o1 o2]) oeq) n) }
+                    (!chain [ (bucketIndex B d1 o1 n)
+                            = (bucketIndex B (dlst a s1 t1) o1 n)   [d1e]
+                            = (bucketIndex B (dlst a s2 t2) o2 n)   [step]
+                            = (bucketIndex B d2 o2 n)               [d2e] ]))
+
+    define bucketIndex_locs_inv_all := (forall B . (bi-inv B))
+    by-induction bucketIndex_locs_inv_all {
+      zero =>
+        let { dc := (bi-dlst zero);
+              _  := conclude dc
+                      pick-any a:Location s1:(Lst 'S) t1:(DLst (Lst 'S)) s2:(Lst 'S) t2:(DLst (Lst 'S))
+                        assume (same_locs t1 t2)
+                          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                            assume (same_locs o1 o2)
+                              pick-any n:N
+                                (!chain [ (bucketIndex zero (dlst a s1 t1) o1 n)
+                                        = n                                        [bucketIndex_axioms]
+                                        = (bucketIndex zero (dlst a s2 t2) o2 n)   [bucketIndex_axioms] ]) }
+        (!bi-close zero dc)
+    | (S bx) =>
+        let { ih := (bi-inv bx);
+              dc := (bi-dlst (S bx));
+              _  := conclude dc
+                      pick-any a:Location s1:(Lst 'S) t1:(DLst (Lst 'S)) s2:(Lst 'S) t2:(DLst (Lst 'S))
+                        assume ht := (same_locs t1 t2)
+                          pick-any o1:(DLst (Lst 'S)) o2:(DLst (Lst 'S))
+                            assume ho := (same_locs o1 o2)
+                              pick-any n:N
+                                let { ihi := (!uspec (!mp (!uspec* (!mp (!uspec* ih [t1 t2]) ht) [o1 o2]) ho) (S n)) }
+                                (!chain [ (bucketIndex (S bx) (dlst a s1 t1) o1 n)
+                                        = (bucketIndex bx t1 o1 (S n))                 [bucketIndex_axioms]
+                                        = (bucketIndex bx t2 o2 (S n))                 [ihi]
+                                        = (bucketIndex (S bx) (dlst a s2 t2) o2 n)     [bucketIndex_axioms] ]) }
+        (!bi-close (S bx) dc)
+    }
+
+    # Corollary: insertion does not change the reduced bucket index (PROVEN).
+    define bucketIndex_insert_invariant :=
+        (forall bucket rv v dlls bucket0 .
+            (bucketIndex bucket0 (insertDPrList bucket rv v dlls) (insertDPrList bucket rv v dlls) zero) =
+            (bucketIndex bucket0 dlls dlls zero))
+    conclude bucketIndex_insert_invariant
+        pick-any bucket:N rv:N v:'S dlls:(DLst (Lst 'S)) bucket0:N
+            let { le := (!uspec* insertDPrList_preserves_locs [bucket rv v dlls]);
+                  sl := (!chain-> [ le ==> (same_locs (insertDPrList bucket rv v dlls) dlls) [same_locs_def] ]) }
+            (!uspec (!mp (!uspec* (!mp (!uspec* (!uspec bucketIndex_locs_inv_all bucket0)
+                                                [(insertDPrList bucket rv v dlls) dlls]) sl)
+                                  [(insertDPrList bucket rv v dlls) dlls]) sl) zero)
+
+    ### Insertion at position pos puts v at the head of the bucket at pos
+    ### (PROVEN, by induction on the bucket list).
+    define head_after_insertNAt :=
+        (forall dlls pos cnt v .
+            (exists lh lsts tail_dlls . (drop pos dlls) = (dlst lh lsts tail_dlls)) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt pos (S cnt) v dlls)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))))
+    by-induction head_after_insertNAt {
+        (dempty htl:Location) =>
+            pick-any pos:N cnt:N v:'S
+              assume hyp := (exists lh lsts tail_dlls . (drop pos (dempty htl)) = (dlst lh lsts tail_dlls))
+                pick-witnesses w1 w2 w3 for hyp weq
+                  let { e  := (!chain [ (dempty htl) = (drop pos (dempty htl)) [drop_dempty]
+                                                      = (dlst w1 w2 w3)         [weq] ]);
+                        nc := (!uspec* dlst-no-conf [htl w1 w2 w3]) }
+                  (!from-complements (exists lh lsts tail_dlls . (((drop pos (insertNAt pos (S cnt) v (dempty htl))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) e nc)
+      | (dlst a:Location s:(Lst 'S) t:(DLst (Lst 'S))) =>
+            let { IH := (forall pos cnt v . (exists lh lsts tail_dlls . (drop pos t) = (dlst lh lsts tail_dlls)) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt pos (S cnt) v t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) }
+            pick-any pos:N cnt:N v:'S
+              datatype-cases ((exists lh lsts tail_dlls . (drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt pos (S cnt) v (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) on pos {
+                zero =>
+                  assume hyp := (exists lh lsts tail_dlls . (drop zero (dlst a s t)) = (dlst lh lsts tail_dlls))
+                    let { e1 := (!chain [ (drop zero (insertNAt zero (S cnt) v (dlst a s t)))
+                                         = (insertNAt zero (S cnt) v (dlst a s t))              [drop_axioms]
+                                         = (dlst a (lst v s) (insertNAt zero cnt v t))          [insertNAt_axioms] ]);
+                          i1 := (!chain-> [ (!reflex v) ==> ((v = v) | (Lst.in v s))           [alternate]
+                                                        ==> (Lst.in v (lst v s))               [Lst.In.in-lst-axiom] ]);
+                          _  := (!both e1 i1) }
+                    (!egen* (exists lh lsts tail_dlls . (((drop zero (insertNAt zero (S cnt) v (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [a (lst v s) (insertNAt zero cnt v t)])
+              | (S p') =>
+                  assume hyp := (exists lh lsts tail_dlls . (drop (S p') (dlst a s t)) = (dlst lh lsts tail_dlls))
+                    let { h2 := (!chain-> [ hyp ==> (exists lh lsts tail_dlls . (drop p' t) = (dlst lh lsts tail_dlls)) [drop_axioms] ]);
+                          ih := (!mp (!uspec* IH [p' cnt v]) h2) }
+                    (!chain-> [ ih ==> (exists lh lsts tail_dlls . (((drop (S p') (insertNAt (S p') (S cnt) v (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [insertNAt_axioms drop_axioms] ])
+              }
+    }
+
+    ### Further insertions keep v in the bucket at pos (PROVEN). They only
+    ### prepend values to buckets.
+    define head_kept_insertNAt :=
+        (forall dlls pos bucket cnt v v0 .
+            (exists lh lsts tail_dlls . (((drop pos dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket cnt v0 dlls)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))))
+    by-induction head_kept_insertNAt {
+        (dempty htl:Location) =>
+            pick-any pos:N bucket:N cnt:N v:'S v0:'S
+              assume hyp := (exists lh lsts tail_dlls . (((drop pos (dempty htl)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                pick-witnesses w1 w2 w3 for hyp hw
+                  let { dw := (!left-and hw);
+                        e  := (!chain [ (dempty htl) = (drop pos (dempty htl)) [drop_dempty]
+                                                      = (dlst w1 w2 w3)         [dw] ]);
+                        nc := (!uspec* dlst-no-conf [htl w1 w2 w3]) }
+                  (!from-complements (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket cnt v0 (dempty htl))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) e nc)
+      | (dlst a:Location s:(Lst 'S) t:(DLst (Lst 'S))) =>
+            let { IH := (forall pos bucket cnt v v0 . (exists lh lsts tail_dlls . (((drop pos t) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket cnt v0 t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))));
+                  # the head bucket of (dlst a s t) is s
+                  headin := method (vv hyp)
+                              pick-witnesses w1 w2 w3 for hyp hw
+                                let { dw  := (!left-and hw);
+                                      iw  := (!right-and hw);
+                                      deq := (!chain [ (dlst a s t) = (drop zero (dlst a s t)) [drop_axioms]
+                                                                    = (dlst w1 w2 w3)           [dw] ]);
+                                      s_eq := (!chain [ s = (vHead (dlst a s t))    [DLst.dlst-vHead]
+                                                          = (vHead (dlst w1 w2 w3)) [deq]
+                                                          = w2                      [DLst.dlst-vHead] ]) }
+                                (!chain-> [ iw ==> (Lst.in vv s) [s_eq] ]) }
+            pick-any pos:N bucket:N cnt:N v:'S v0:'S
+              datatype-cases ((exists lh lsts tail_dlls . (((drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket cnt v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) on cnt {
+                zero =>
+                  assume hyp := (exists lh lsts tail_dlls . (((drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                    (!chain-> [ hyp ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket zero v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [insertNAt_axioms] ])
+              | (S m') =>
+                  datatype-cases ((exists lh lsts tail_dlls . (((drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt bucket (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) on bucket {
+                    zero =>
+                      datatype-cases ((exists lh lsts tail_dlls . (((drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt zero (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) on pos {
+                        zero =>
+                          assume hyp := (exists lh lsts tail_dlls . (((drop zero (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                            let { ins := (!headin v hyp);
+                                  e1  := (!chain [ (drop zero (insertNAt zero (S m') v0 (dlst a s t)))
+                                                 = (insertNAt zero (S m') v0 (dlst a s t))          [drop_axioms]
+                                                 = (dlst a (lst v0 s) (insertNAt zero m' v0 t))     [insertNAt_axioms] ]);
+                                  i1  := (!chain-> [ ins ==> ((v = v0) | (Lst.in v s))  [alternate]
+                                                         ==> (Lst.in v (lst v0 s))      [Lst.In.in-lst-axiom] ]);
+                                  _   := (!both e1 i1) }
+                            (!egen* (exists lh lsts tail_dlls . (((drop zero (insertNAt zero (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [a (lst v0 s) (insertNAt zero m' v0 t)])
+                      | (S p') =>
+                          assume hyp := (exists lh lsts tail_dlls . (((drop (S p') (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                            let { h2 := (!chain-> [ hyp ==> (exists lh lsts tail_dlls . (((drop p' t) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [drop_axioms] ]);
+                                  ih := (!mp (!uspec* IH [p' zero m' v v0]) h2) }
+                            (!chain-> [ ih ==> (exists lh lsts tail_dlls . (((drop (S p') (insertNAt zero (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [insertNAt_axioms drop_axioms] ])
+                      }
+                  | (S b') =>
+                      datatype-cases ((exists lh lsts tail_dlls . (((drop pos (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (exists lh lsts tail_dlls . (((drop pos (insertNAt (S b') (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))) on pos {
+                        zero =>
+                          assume hyp := (exists lh lsts tail_dlls . (((drop zero (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                            let { ins := (!headin v hyp);
+                                  e1  := (!chain [ (drop zero (insertNAt (S b') (S m') v0 (dlst a s t)))
+                                                 = (insertNAt (S b') (S m') v0 (dlst a s t))       [drop_axioms]
+                                                 = (dlst a s (insertNAt b' (S m') v0 t))           [insertNAt_axioms] ]);
+                                  _   := (!both e1 ins) }
+                            (!egen* (exists lh lsts tail_dlls . (((drop zero (insertNAt (S b') (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [a s (insertNAt b' (S m') v0 t)])
+                      | (S p') =>
+                          assume hyp := (exists lh lsts tail_dlls . (((drop (S p') (dlst a s t)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                            let { h2 := (!chain-> [ hyp ==> (exists lh lsts tail_dlls . (((drop p' t) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [drop_axioms] ]);
+                                  ih := (!mp (!uspec* IH [p' b' (S m') v v0]) h2) }
+                            (!chain-> [ ih ==> (exists lh lsts tail_dlls . (((drop (S p') (insertNAt (S b') (S m') v0 (dlst a s t))) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [insertNAt_axioms drop_axioms] ])
+                      }
+                  }
+              }
+    }
+
+    ### The lookup walk of `in` from bucket index `bucket` ends at the bucket
+    ### that bucketIndex computes, and that bucket exists. If it contains v,
+    ### `in` finds v (PROVEN, by induction on the bucket index).
+    define in_walk_wrap :=
+        method (bucket dc)
+            pick-any pos:N rv:N o_dlls:(DLst (Lst 'S)) v:'S
+                assume ex := (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls))
+                    (!cases (!uspec dlst-no-junk (drop pos o_dlls))
+                        assume is_empty := (exists htl . (drop pos o_dlls) = (dempty htl))
+                            pick-witness wh for is_empty weq
+                            pick-witnesses ow1 ow2 ow3 for ex oeq
+                                let { oeqs := (!sym oeq);
+                                      bi := (!chain [ (bucketIndex bucket (drop pos o_dlls) o_dlls pos)
+                                                    = (bucketIndex bucket (dempty wh) o_dlls pos)    [weq]
+                                                    = (bucketIndex bucket (dempty wh) (dlst ow1 ow2 ow3) pos)       [oeq]
+                                                    = (bucketIndex bucket (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3) zero)              [bucketIndex_axioms]
+                                                    = (bucketIndex bucket o_dlls o_dlls zero)        [oeqs] ]);
+                                      ie := (!chain [ (in bucket rv (drop pos o_dlls) o_dlls v)
+                                                    <==> (in bucket rv (dempty wh) o_dlls v)         [weq]
+                                                    <==> (in bucket rv (dempty wh) (dlst ow1 ow2 ow3) v)            [oeq]
+                                                    <==> (in bucket rv (dlst ow1 ow2 ow3) (dlst ow1 ow2 ow3) v)                    [in_axioms]
+                                                    <==> (in bucket rv o_dlls o_dlls v)              [oeqs] ]);
+                                      dq0 := (!chain [ (drop zero (dlst ow1 ow2 ow3)) = (dlst ow1 ow2 ow3) [drop_axioms] ]);
+                                      _   := (!reflex (dlst ow1 ow2 ow3));
+                                      ex0 := (!egen* (exists olh olsts otail_dlls . (dlst ow1 ow2 ow3) = (dlst olh olsts otail_dlls)) [ow1 ow2 ow3]);
+                                      r0  := (!mp (!uspec* dc [zero rv (dlst ow1 ow2 ow3) v ow1 ow2 ow3]) (!both dq0 ex0));
+                                      r1  := (!chain-> [ r0 ==> ((exists lh lsts tail_dlls . (drop (bucketIndex bucket o_dlls o_dlls zero) o_dlls) = (dlst lh lsts tail_dlls)) &
+             ((exists lh lsts tail_dlls . (((drop (bucketIndex bucket o_dlls o_dlls zero) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (in bucket rv o_dlls o_dlls v))) [oeqs] ]);
+                                      a1  := (!chain-> [ (!left-and r1) ==> (exists lh lsts tail_dlls . (drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) [bi] ]);
+                                      im  := assume h := (exists lh lsts tail_dlls . (((drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                                               let { h0 := (!chain-> [ h ==> (exists lh lsts tail_dlls . (((drop (bucketIndex bucket o_dlls o_dlls zero) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [bi] ]);
+                                                     i0 := (!mp (!right-and r1) h0) }
+                                               (!chain-> [ i0 ==> (in bucket rv (drop pos o_dlls) o_dlls v) [ie] ]) }
+                                (!both a1 im)
+                        assume is_dlst := (exists lh lsts tail_dlls . (drop pos o_dlls) = (dlst lh lsts tail_dlls))
+                            pick-witnesses w1 w2 w3 for is_dlst weq
+                                let { r := (!mp (!uspec* dc [pos rv o_dlls v w1 w2 w3]) (!both weq ex)) }
+                                (!chain-> [ r ==> ((exists lh lsts tail_dlls . (drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) &
+             ((exists lh lsts tail_dlls . (((drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (in bucket rv (drop pos o_dlls) o_dlls v))) [weq] ]))
+
+    define in_walk :=
+        (forall bucket pos rv o_dlls v . (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) ==> ((exists lh lsts tail_dlls . (drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) &
+             ((exists lh lsts tail_dlls . (((drop (bucketIndex bucket (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (in bucket rv (drop pos o_dlls) o_dlls v))))
+    by-induction in_walk {
+        zero =>
+            let { dc := pick-any pos:N rv:N o_dlls:(DLst (Lst 'S)) v:'S lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                          assume hyp := (((drop pos o_dlls) = (dlst lh9 lsts9 tl9)) & (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)))
+                            let { dq := (!left-and hyp);
+                                  bi := (!chain [ (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) = pos [bucketIndex_axioms] ]);
+                                  de := (!chain [ (drop (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls)
+                                                = (drop pos o_dlls)           [bi]
+                                                = (dlst lh9 lsts9 tl9)        [dq] ]);
+                                  a1 := (!egen* (exists lh lsts tail_dlls . (drop (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) [lh9 lsts9 tl9]);
+                                  im := assume h := (exists lh lsts tail_dlls . (((drop (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                                          pick-witnesses w1 w2 w3 for h hw
+                                            let { dw  := (!left-and hw);
+                                                  iw  := (!right-and hw);
+                                                  deq := (!chain [ (dlst lh9 lsts9 tl9)
+                                                                 = (drop (bucketIndex zero (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls) [de]
+                                                                 = (dlst w1 w2 w3)                                                  [dw] ]);
+                                                  s_eq := (!chain [ lsts9 = (vHead (dlst lh9 lsts9 tl9)) [DLst.dlst-vHead]
+                                                                          = (vHead (dlst w1 w2 w3))     [deq]
+                                                                          = w2                          [DLst.dlst-vHead] ]);
+                                                  il  := (!chain-> [ iw ==> (Lst.in v lsts9) [s_eq] ]) }
+                                            datatype-cases (in zero rv (dlst lh9 lsts9 tl9) o_dlls v) on rv {
+                                                zero   => (!chain-> [ il ==> (in zero zero (dlst lh9 lsts9 tl9) o_dlls v) [in_axioms] ])
+                                              | (S r') => (!chain-> [ il ==> ((in zero (S r') (dlst lh9 lsts9 tl9) o_dlls v) <==> true) [in_axioms]
+                                                                        ==> (in zero (S r') (dlst lh9 lsts9 tl9) o_dlls v)            [prop-taut] ])
+                                            } }
+                            (!both a1 im) }
+            (!in_walk_wrap zero dc)
+      | (S bx) =>
+            let { IH := (forall pos rv o_dlls v . (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)) ==> ((exists lh lsts tail_dlls . (drop (bucketIndex bx (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) &
+             ((exists lh lsts tail_dlls . (((drop (bucketIndex bx (drop pos o_dlls) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) ==> (in bx rv (drop pos o_dlls) o_dlls v))));
+                  dc := pick-any pos:N rv:N o_dlls:(DLst (Lst 'S)) v:'S lh9:Location lsts9:(Lst 'S) tl9:(DLst (Lst 'S))
+                          assume hyp := (((drop pos o_dlls) = (dlst lh9 lsts9 tl9)) & (exists olh olsts otail_dlls . o_dlls = (dlst olh olsts otail_dlls)))
+                            let { dq := (!left-and hyp);
+                                  ex := (!right-and hyp);
+                                  ds := (!mp (!uspec* drop_step [o_dlls pos lh9 lsts9 tl9]) dq);
+                                  bi := (!chain [ (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos)
+                                                = (bucketIndex bx tl9 o_dlls (S pos))                     [bucketIndex_axioms]
+                                                = (bucketIndex bx (drop (S pos) o_dlls) o_dlls (S pos))   [ds] ]);
+                                  r  := (!mp (!uspec* IH [(S pos) rv o_dlls v]) ex);
+                                  a1 := (!chain-> [ (!left-and r) ==> (exists lh lsts tail_dlls . (drop (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) [bi] ]);
+                                  im := assume h := (exists lh lsts tail_dlls . (((drop (bucketIndex (S bx) (dlst lh9 lsts9 tl9) o_dlls pos) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts)))
+                                          let { h1 := (!chain-> [ h ==> (exists lh lsts tail_dlls . (((drop (bucketIndex bx (drop (S pos) o_dlls) o_dlls (S pos)) o_dlls) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [bi] ]);
+                                                i1 := (!mp (!right-and r) h1) }
+                                          (!chain-> [ i1 ==> (in bx rv tl9 o_dlls v)                         [ds]
+                                                         ==> (in (S bx) rv (dlst lh9 lsts9 tl9) o_dlls v)    [in_axioms] ]) }
+                            (!both a1 im) }
+            (!in_walk_wrap (S bx) dc)
+    }
+
+    ### After inserting v at any bucket index of a non-empty bucket list,
+    ### `in` finds v (PROVEN).
+    define in_after_insert_self :=
+        (forall bucket rv v dlls .
+            (exists lh lsts tail_dlls . dlls = (dlst lh lsts tail_dlls)) ==>
+            (in bucket rv (insertDPrList bucket rv v dlls) (insertDPrList bucket rv v dlls) v))
+    conclude in_after_insert_self
+        pick-any bucket:N rv:N v:'S dlls:(DLst (Lst 'S))
+          assume ne := (exists lh lsts tail_dlls . dlls = (dlst lh lsts tail_dlls))
+            let { idx := (bucketIndex bucket dlls dlls zero);
+                  d1  := (insertNAt idx (S rv) v dlls);
+                  w   := (countWraps idx (S rv) dlls);
+                  d'  := (insertDPrList bucket rv v dlls);
+                  w0  := (!mp (!uspec* in_walk [bucket zero rv dlls v]) ne);
+                  a0  := (!chain-> [ (!left-and w0) ==> (exists lh lsts tail_dlls . (drop idx dlls) = (dlst lh lsts tail_dlls)) [drop_axioms] ]);
+                  h1  := (!mp (!uspec* head_after_insertNAt [dlls idx rv v]) a0);
+                  h2  := (!mp (!uspec* head_kept_insertNAt [d1 idx zero w v v]) h1);
+                  h3  := (!chain-> [ h2 ==> (exists lh lsts tail_dlls . (((drop idx (insertDPrList bucket rv v dlls)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [insertDPrList_axioms] ]);
+                  bii := (!uspec* bucketIndex_insert_invariant [bucket rv v dlls bucket]);
+                  h4  := (!chain-> [ h3 ==> (exists lh lsts tail_dlls . (((drop (bucketIndex bucket (insertDPrList bucket rv v dlls) (insertDPrList bucket rv v dlls) zero) (insertDPrList bucket rv v dlls)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [bii] ]) }
+            pick-witnesses nl nlsts nt for ne neq
+              let { le  := (!uspec* insertDPrList_preserves_locs [bucket rv v dlls]);
+                    lc  := (!chain [ (dlls_locs (insertDPrList bucket rv v dlls))
+                                   = (dlls_locs dlls)                     [le]
+                                   = (dlls_locs (dlst nl nlsts nt))       [neq]
+                                   = (lst nl (dlls_locs nt))              [dlls_locs_axioms] ]);
+                    ne' := (!mp (!uspec* locs_lst_implies_dlst [(insertDPrList bucket rv v dlls) nl (dlls_locs nt)]) lc);
+                    w1  := (!mp (!uspec* in_walk [bucket zero rv (insertDPrList bucket rv v dlls) v]) ne');
+                    h5  := (!chain-> [ h4 ==> (exists lh lsts tail_dlls . (((drop (bucketIndex bucket (drop zero (insertDPrList bucket rv v dlls)) (insertDPrList bucket rv v dlls) zero) (insertDPrList bucket rv v dlls)) = (dlst lh lsts tail_dlls)) & (Lst.in v lsts))) [drop_axioms] ]);
+                    i5  := (!mp (!right-and w1) h5) }
+              (!chain-> [ i5 ==> (in bucket rv (insertDPrList bucket rv v dlls) (insertDPrList bucket rv v dlls) v) [drop_axioms] ])
 }
 
 open DL_L_S

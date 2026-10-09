@@ -1,0 +1,28 @@
+### mode.ath
+###
+### Time limits and enumeration sizes of the test suite. This checked-in
+### version is the QUICK mode. `./run_tests.sh --night` overwrites it with the
+### night settings for the duration of the run and restores it at the end.
+
+module Mode {
+    define name             := "quick"
+    # seconds per Vampire stage, concrete computations
+    define vp-time          := 120    
+    # seconds per Vampire stage, per-module consistency
+    define consistency-time := 120    
+    # all definitions and whole assumption base (0 = skip)
+    define full-ab-time     := 0      
+    # seconds per Vampire stage, enumerated cases
+    define enum-time        := 30     
+    # t_enum_dht.ath sizes: rings of 1..enum-ring buckets, rv in 0..enum-rv,
+    # keys in 0..enum-key (definitions groups); smaller bounds for the
+    # end-to-end groups, which take several Vampire calls per case.
+    define enum-ring        := 3
+    define enum-rv          := 2
+    define enum-key         := 3
+    define enum-query-ring  := 2
+    define enum-query-rv    := 1
+    define enum-query-key   := 2
+    define enum-two-ring    := 2
+    define enum-two-key     := 1
+}

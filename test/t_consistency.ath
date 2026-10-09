@@ -18,4 +18,14 @@ module T_Consistency {
         (join Premises.basics (join Premises.functions (join Premises.dpair Premises.dfunction))))
     (expect-no-refutation "distributed hash tables" Premises.dht_all)
     (expect-no-refutation "grow-only set CRDT" (join Premises.basics Premises.crdt))
+    # All definitions together, then the whole assumption base (definitions and
+    # proven theorems; the proven lemmas can shorten a refutation). Both only
+    # in night mode, since they take hours.
+    check { (less? 0 Mode.full-ab-time) =>
+              let {all-defs := (join Premises.dht_all
+                               (join Premises.dpair
+                               (join Premises.dfunction Premises.crdt)))}
+                let {_ := (expect-no-refutation-for "all definitions together" all-defs Mode.full-ab-time)}
+                  (expect-no-refutation-for "whole assumption base" (ab) Mode.full-ab-time)
+          | else => (print "\nCONSISTENCY whole assumption base: skipped in quick mode\n") }
 }
