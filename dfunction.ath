@@ -6,10 +6,12 @@ module DFunction {
     open Function
     assert (theory-axioms Function.theory)
     # Declarations
-    declare apply: (D,R) [(DPr (fn D R) (fn D R)) D] -> (Option R)
-    # (F at x) is the same as (apply F x), as (f at x) is for unreplicated
-    # functions. The overload dispatches on the sorts of the arguments.
-    overload at apply
+    # Application of a replicated function, written (F at x) as Function.at is
+    # for unreplicated functions. Declaring it as at (not as apply) makes Athena
+    # print DFunction.at in the proven theorems. The overload keeps Function.at
+    # available under the same name. It dispatches on the sorts of the arguments.
+    declare at: (D,R) [(DPr (fn D R) (fn D R)) D] -> (Option R)
+    overload at Function.at
 
     declare functionReplica: (D,R) [(fn D R) Location Location]
                                    -> (DPr (fn D R) (fn D R))
@@ -36,26 +38,24 @@ module DFunction {
     # two locations.
     assert* function_replica_axiom := ((functionReplica f l0 l1) = (dpr l0 f l1 f))
 
-    # apply reads the function only through the failure-aware destructors
+    # Application reads the function only through the failure-aware destructors
     # getFirst and getSecond of distributed pairs (dpair.ath). It uses the
     # replica at the first location when that location is alive, falls back to
     # the replica at the second location otherwise, and returns NONE when both
     # are unreachable. The fault-tolerance theorems below therefore follow from
     # the failure model of distributed pairs; they are not part of this
-    # definition. (An earlier version defined apply directly from a liveness
-    # predicate on replicas, which made fault_tolerance_correctness a
-    # restatement of its axioms.)
-    assert* apply_first_axiom :=
-        (((DPr.getFirst (functionReplica f l0 l1)) = (SOME h))
-         ==> (((functionReplica f l0 l1) at x) = (SOME (h at x))))
-    assert* apply_second_axiom :=
-        ((((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
-          ((DPr.getSecond (functionReplica f l0 l1)) = (SOME h)))
-         ==> (((functionReplica f l0 l1) at x) = (SOME (h at x))))
-    assert* apply_none_axiom :=
-        ((((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
-          ((DPr.getSecond (functionReplica f l0 l1)) = NONE))
-         ==> (((functionReplica f l0 l1) at x) = NONE))
+    # definition. (An earlier version defined application directly from a
+    # liveness predicate on replicas, which made fault_tolerance_correctness a
+    # restatement of its axioms.) The three guards are disjoint and exhaustive,
+    # since getFirst and getSecond each return NONE or (SOME h).
+    assert apply_axioms :=
+        (fun [((functionReplica f l0 l1) at x) =
+                [(SOME (h at x)) when ((DPr.getFirst (functionReplica f l0 l1)) = (SOME h))
+                 (SOME (h at x)) when (((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
+                                       ((DPr.getSecond (functionReplica f l0 l1)) = (SOME h)))
+                 NONE            when (((DPr.getFirst (functionReplica f l0 l1)) = NONE) &
+                                       ((DPr.getSecond (functionReplica f l0 l1)) = NONE))]])
+    define [apply_first_axiom apply_second_axiom apply_none_axiom] := apply_axioms
 
     # Composition passes the result of the inner replica F to the outer one G,
     # and propagates NONE. The two clauses are disjoint, since (F at x) is
@@ -126,5 +126,6 @@ module DFunction {
 
 }
 
-# Export the infix syntax: clients write (F at x) for (DFunction.apply F x).
-overload at DFunction.apply
+# Export the infix syntax: clients write (F at x) for (DFunction.at F x) and
+# (f at x) for (Function.at f x).
+overload at DFunction.at
